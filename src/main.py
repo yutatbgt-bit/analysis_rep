@@ -82,6 +82,29 @@ def extract_csv_metadata(file_path):
     return metadata
 
 
+import csv
+
+
+def extract_total_row(file_path):
+    """CSVから合計行を安全かつ正確に抽出する（クォート内のカンマに対応）。"""
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if not row:
+                        continue
+                    # '合計' が含まれる行を探す
+                    row_str = " ".join(row)
+                    if "合計" in row_str:
+                        # 空文字除去した行を返す
+                        return [str(c).strip() for c in row]
+        except Exception:
+            continue
+    return None
+
+
+
 # ---------------------------------------------------------------------------
 # CSV ファイル探索
 # ---------------------------------------------------------------------------
@@ -170,93 +193,20 @@ def load_and_clean_csv(file_path):
 
 
 # ---------------------------------------------------------------------------
-# カテゴリ分類（汎用）
+# カテゴリ分類（設定ファイル連携）
 # ---------------------------------------------------------------------------
 
-# 大分類: 多カテゴリCSV向けのキーワードマッピング
-_BROAD_CATEGORY_RULES = [
-    ("スイーツ・洋菓子", [
-        "バウムクーヘン", "マドレーヌ", "フィナンシェ", "ドーナツ", "バルン",
-        "ケーキ", "プリン", "ゼリー", "タルト", "大福", "大福もち",
-        "わらびもち", "和菓子", "シュークリーム",
-    ]),
-    ("お弁当・寿司", ["弁当", "重", "丼", "すし", "寿司", "巻"]),
-    ("惣菜・おかず", [
-        "サラダ", "和え", "ナムル", "揚げ浸し", "マリネ", "惣菜",
-        "カツレツ", "ハンバーグ", "コロッケ", "春巻", "餃子",
-        "シューマイ", "唐揚", "筑前煮", "煮物", "ポテト",
-    ]),
-    ("雑貨・バッグ", ["バッグ", "エコバッグ"]),
-    ("精肉・肉加工品", [
-        "肉", "牛", "豚", "鶏", "ローストビーフ", "ステーキ",
-        "ミンチ", "カルビ", "鶏肉", "豚肉", "牛肉",
-    ]),
-    ("水産・魚加工品", [
-        "刺身", "鯛", "鮭", "鮪", "うなぎ", "魚", "海老",
-        "イカ", "タコ", "ちりめん", "しらす", "蒲焼",
-    ]),
-    ("ベーカリー", [
-        "パン", "ブレッド", "トースト", "クロワッサン",
-        "ロールパン", "サンドイッチ",
-    ]),
-    ("日配品・デイリー", [
-        "牛乳", "ヨーグルト", "チーズ", "バター", "卵",
-        "たまご", "豆腐", "納豆", "キムチ", "こんにゃく",
-    ]),
-]
-
-# サブカテゴリ: 単一大分類内でさらに細分化するキーワードマッピング
-_SUB_CATEGORY_RULES = [
-    ("蒲焼き（静岡県産）", ["静岡県産"]),
-    ("蒲焼き（浜名湖）", ["浜名湖"]),
-    ("蒲焼き（天然）", ["天然"]),
-    ("蒲焼き（炭火焼き）", ["炭火焼"]),
-    ("蒲焼き（江戸前風）", ["江戸前風"]),
-    ("白焼", ["白焼"]),
-    ("肝焼き", ["肝焼"]),
-    ("たれ・付属品", ["たれ", "タレ"]),
-]
-
-
-def _match_category(name, rules):
-    """キーワードルールに基づいてカテゴリ名を返す。マッチしなければNone。"""
-    name_str = str(name)
-    for category, keywords in rules:
-        if any(kw in name_str for kw in keywords):
-            return category
-    return None
-
-
-def categorize_broad(name):
-    """大分類カテゴリを返す。"""
-    result = _match_category(name, _BROAD_CATEGORY_RULES)
-    return result if result else "その他"
-
-
-def categorize_sub(name):
-    """サブカテゴリ分類を返す。"""
-    result = _match_category(name, _SUB_CATEGORY_RULES)
-    return result if result else "蒲焼き（その他）"
+import sys
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+from category_loader import apply_categories, get_category_mapper
 
 
 def apply_categorization(df_week, df_day):
-    """データに適切なカテゴリ分類を適用する。
+    """Excel設定ファイル（config.md.xlsx等）に基づきカテゴリ分類を適用する。"""
+    return apply_categories(df_week, df_day)
 
-    大分類で2カテゴリ以上に分かれる場合は大分類を使用。
-    1カテゴリにしかならない場合はサブカテゴリ分類を使用。
-    """
-    test_categories = df_week["name"].apply(categorize_broad).nunique()
-
-    if test_categories >= 2:
-        categorize_fn = categorize_broad
-        logger.info("大分類カテゴリを使用（%d カテゴリ検出）", test_categories)
-    else:
-        categorize_fn = categorize_sub
-        logger.info("サブカテゴリ分類を使用（単一大分類データ）")
-
-    df_week["category"] = df_week["name"].apply(categorize_fn)
-    df_day["category"] = df_day["name"].apply(categorize_fn)
-    return df_week, df_day
 
 
 # ---------------------------------------------------------------------------
@@ -471,26 +421,32 @@ def generate_ranking_commentary(df_week, df_day, week_rank_dict):
 # HTML レポート生成
 # ---------------------------------------------------------------------------
 
+def _get_val_from_row(row, idx, default="0"):
+    """リストまたはSeriesから安全にインデックス位置の値を取得する。"""
+    if row is None:
+        return default
+    try:
+        if hasattr(row, "iloc"):
+            return str(row.iloc[idx])
+        return str(row[idx])
+    except (IndexError, KeyError):
+        return default
+
+
+
 def generate_html_report(
     df_week, df_day, df_growth, df_decline, cat_compare,
     total_row_week, total_row_day, label_week, label_day, header_meta
 ):
     """データから HTML ダッシュボードレポートを生成する。"""
-    week_avg_val = (
-        float(str(total_row_week.iloc[2]).replace(",", ""))
-        if total_row_week is not None else 0
-    )
-    day_sales_val = (
-        float(str(total_row_day.iloc[2]).replace(",", ""))
-        if total_row_day is not None else 0
-    )
+    week_sales_raw = _get_val_from_row(total_row_week, 2, "0").replace(",", "").replace("¥", "")
+    day_sales_raw = _get_val_from_row(total_row_day, 2, "0").replace(",", "").replace("¥", "")
+    week_avg_val = float(week_sales_raw) if week_sales_raw else 0
+    day_sales_val = float(day_sales_raw) if day_sales_raw else 0
 
-    week_budget = (
-        str(total_row_week.iloc[5]) if total_row_week is not None else "0.0%"
-    )
-    day_budget = (
-        str(total_row_day.iloc[5]) if total_row_day is not None else "0.0%"
-    )
+    week_budget = _get_val_from_row(total_row_week, 5, "0.0%")
+    day_budget = _get_val_from_row(total_row_day, 5, "0.0%")
+
 
     comp_ratio = (day_sales_val / week_avg_val * 100) if week_avg_val > 0 else 0
     comp_diff = day_sales_val - week_avg_val
@@ -595,10 +551,17 @@ def generate_html_report(
         df_week, df_day, week_rank_dict
     )
 
-    # --- カテゴリ別テーブル（構成比の高い順にソート） ---
-    cat_compare = cat_compare.sort_values("ratio_day", ascending=False)
+    # --- カテゴリ別テーブル（構成比の高い順にソート、売上があるものを優先） ---
+    cat_compare = cat_compare.sort_values("sales_daily_avg_day", ascending=False)
+    # 売上が両期間とも0のカテゴリは除外（または末尾に）
+    cat_active = cat_compare[
+        (cat_compare["sales_daily_avg_week"] > 0) | (cat_compare["sales_daily_avg_day"] > 0)
+    ]
+    if cat_active.empty:
+        cat_active = cat_compare
+
     category_table_rows = []
-    for cat, row in cat_compare.iterrows():
+    for cat, row in cat_active.iterrows():
         diff_val = row.ratio_day - row.ratio_week
         diff_class = "badge-up" if diff_val >= 0 else "badge-down"
         diff_sign = "+" if diff_val >= 0 else ""
@@ -613,11 +576,28 @@ def generate_html_report(
         </tr>""")
     category_table_rows = "\n".join(category_table_rows)
 
-    # グラフデータ用JSON
-    cat_labels = list(cat_compare.index)
-    cat_week_data = [float(x) for x in cat_compare["sales_daily_avg_week"]]
-    cat_day_data = [float(x) for x in cat_compare["sales_daily_avg_day"]]
-    cat_pie_data = [float(x) for x in cat_compare["ratio_day"]]
+    # 棒グラフデータ（売上上位12カテゴリ）
+    bar_top = cat_active.head(12)
+    cat_bar_labels = list(bar_top.index)
+    cat_bar_week_data = [float(x) for x in bar_top["sales_daily_avg_week"]]
+    cat_bar_day_data = [float(x) for x in bar_top["sales_daily_avg_day"]]
+
+    # 円グラフデータ（売上上位7カテゴリ＋その他合算）
+    if len(cat_active) > 8:
+        pie_top7 = cat_active.head(7)
+        pie_other_ratio = float(cat_active.iloc[7:]["ratio_day"].sum())
+        cat_pie_labels = list(pie_top7.index) + ["その他（上記以外）"]
+        cat_pie_data = [round(float(x), 2) for x in pie_top7["ratio_day"]] + [round(pie_other_ratio, 2)]
+    else:
+        cat_pie_labels = list(cat_active.index)
+        cat_pie_data = [round(float(x), 2) for x in cat_active["ratio_day"]]
+
+    pie_palette = [
+        "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6",
+        "#06b6d4", "#f97316", "#84cc16", "#64748b", "#a855f7"
+    ]
+    pie_colors = pie_palette[: len(cat_pie_labels)]
+
 
     html_template = """<!DOCTYPE html>
 <html lang="ja">
@@ -632,16 +612,18 @@ def generate_html_report(
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {{
-            --bg-color: #ffffff;
-            --card-bg: #ffffff;
-            --primary: #0f172a;
-            --primary-light: #475569;
-            --border-color: #cbd5e1;
-            --border-light: #e2e8f0;
-            --text-main: #0f172a;
-            --text-muted: #475569;
-            --accent-green: #1b5e20;
-            --accent-red: #b71c1c;
+            --bg-color: #0f1117;
+            --card-bg: #1a1d27;
+            --primary: #e2e8f0;
+            --primary-light: #94a3b8;
+            --border-color: #2d3348;
+            --border-light: #232839;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-green: #4ade80;
+            --accent-red: #f87171;
+            --th-bg: #161924;
+            --hover-bg: #1f2233;
             --radius-sm: 0px;
             --radius-md: 0px;
             --radius-lg: 0px;
@@ -762,7 +744,7 @@ def generate_html_report(
         .chart-card {{
             border: 1px solid var(--border-color);
             padding: 24px;
-            background: #ffffff;
+            background: var(--card-bg);
         }}
 
         .chart-container {{
@@ -792,7 +774,7 @@ def generate_html_report(
         }}
 
         th {{
-            background-color: #f8fafc;
+            background-color: var(--th-bg);
             padding: 10px 12px;
             font-weight: 700;
             color: var(--primary);
@@ -807,7 +789,7 @@ def generate_html_report(
         }}
 
         tr.item-row:hover td {{
-            background-color: #f8fafc;
+            background-color: var(--hover-bg);
         }}
 
         .table-responsive {{
@@ -848,7 +830,7 @@ def generate_html_report(
 
         .progress-bar-container {{
             width: 80px;
-            background-color: #f1f5f9;
+            background-color: var(--border-light);
             height: 4px;
             display: inline-block;
             vertical-align: middle;
@@ -1118,25 +1100,25 @@ def generate_html_report(
 
         // グラフ描画
         document.addEventListener('DOMContentLoaded', function() {{
-            // カテゴリ別棒グラフ
+            // カテゴリ別棒グラフ（上位カテゴリ）
             const barCtx = document.getElementById('categoryBarChart').getContext('2d');
             new Chart(barCtx, {{
                 type: 'bar',
                 data: {{
-                    labels: {cat_labels_js},
+                    labels: {cat_bar_labels_js},
                     datasets: [
                         {{
                             label: '比較基準',
-                            data: {cat_week_data_js},
-                            backgroundColor: '#cbd5e1',
-                            borderColor: '#94a3b8',
+                            data: {cat_bar_week_data_js},
+                            backgroundColor: '#475569',
+                            borderColor: '#64748b',
                             borderWidth: 1
                         }},
                         {{
                             label: '比較対象',
-                            data: {cat_day_data_js},
-                            backgroundColor: '#0f172a',
-                            borderColor: '#0f172a',
+                            data: {cat_bar_day_data_js},
+                            backgroundColor: '#60a5fa',
+                            borderColor: '#3b82f6',
                             borderWidth: 1
                         }}
                     ]
@@ -1148,15 +1130,31 @@ def generate_html_report(
                         y: {{
                             beginAtZero: true,
                             ticks: {{
+                                color: '#94a3b8',
                                 callback: function(value) {{
                                     return '¥' + value.toLocaleString();
                                 }}
+                            }},
+                            grid: {{
+                                color: '#2d3348'
+                            }}
+                        }},
+                        x: {{
+                            ticks: {{
+                                color: '#94a3b8',
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 0
+                            }},
+                            grid: {{
+                                color: '#2d3348'
                             }}
                         }}
                     }},
                     plugins: {{
                         legend: {{
                             labels: {{
+                                color: '#e2e8f0',
                                 font: {{
                                     family: "'Noto Sans JP', sans-serif",
                                     weight: 'bold'
@@ -1174,21 +1172,17 @@ def generate_html_report(
                 }}
             }});
 
-            // 構成比円グラフ
-            const pieColors = [
-                '#0f172a', '#1e3a8a', '#3b82f6', '#475569',
-                '#64748b', '#94a3b8', '#cbd5e1', '#e2e8f0', '#f1f5f9'
-            ];
+            // 構成比円グラフ（上位＋その他）
             const pieCtx = document.getElementById('categoryPieChart').getContext('2d');
             new Chart(pieCtx, {{
                 type: 'doughnut',
                 data: {{
-                    labels: {cat_labels_js},
+                    labels: {cat_pie_labels_js},
                     datasets: [{{
                         data: {cat_pie_data_js},
-                        backgroundColor: pieColors.slice(0, {cat_count}),
+                        backgroundColor: {pie_colors_js},
                         borderWidth: 1,
-                        borderColor: '#ffffff'
+                        borderColor: '#1a1d27'
                     }}]
                 }},
                 options: {{
@@ -1198,8 +1192,9 @@ def generate_html_report(
                         legend: {{
                             position: 'right',
                             labels: {{
-                                boxWidth: 10,
-                                padding: 8,
+                                color: '#e2e8f0',
+                                boxWidth: 12,
+                                padding: 10,
                                 font: {{
                                     size: 11,
                                     family: "'Noto Sans JP', sans-serif"
@@ -1241,11 +1236,12 @@ def generate_html_report(
         label_week=label_week,
         label_day=label_day,
         header_meta=header_meta,
-        cat_labels_js=json.dumps(cat_labels, ensure_ascii=False),
-        cat_week_data_js=json.dumps(cat_week_data),
-        cat_day_data_js=json.dumps(cat_day_data),
+        cat_bar_labels_js=json.dumps(cat_bar_labels, ensure_ascii=False),
+        cat_bar_week_data_js=json.dumps(cat_bar_week_data),
+        cat_bar_day_data_js=json.dumps(cat_bar_day_data),
+        cat_pie_labels_js=json.dumps(cat_pie_labels, ensure_ascii=False),
         cat_pie_data_js=json.dumps(cat_pie_data),
-        cat_count=len(cat_labels),
+        pie_colors_js=json.dumps(pie_colors),
     )
 
     output_dir = "output_data"
@@ -1288,20 +1284,9 @@ def main():
     df_day = load_and_clean_csv(file_day)
 
     # 合計行の抽出
-    df_raw_week = pd.read_csv(file_week, encoding="utf-8-sig", nrows=10)
-    df_raw_day = pd.read_csv(file_day, encoding="utf-8-sig", nrows=10)
+    total_row_week = extract_total_row(file_week)
+    total_row_day = extract_total_row(file_day)
 
-    total_row_week = None
-    for _, row in df_raw_week.iterrows():
-        if "合計" in str(row.values):
-            total_row_week = row
-            break
-
-    total_row_day = None
-    for _, row in df_raw_day.iterrows():
-        if "合計" in str(row.values):
-            total_row_day = row
-            break
 
     # 商品別マージ & 変動分析
     df_merged = pd.merge(
@@ -1338,7 +1323,7 @@ def main():
         0,
     )
 
-    # 変動が顕著な商品のみ抽出
+    # 変動が顕著な商品のみ抽出（データが十分あれば日商基準でフィルタ、少なければ全体から抽出）
     significant_mask = (
         (df_merged["sales_daily_week"] >= 1000)
         | (df_merged["sales_daily_day"] >= 5000)
@@ -1347,10 +1332,22 @@ def main():
         df_merged[significant_mask & (df_merged["sales_diff"] > 0)]
         .sort_values(by="sales_diff", ascending=False)
     )
+    if len(df_growth) < 10:
+        df_growth = (
+            df_merged[df_merged["sales_diff"] > 0]
+            .sort_values(by="sales_diff", ascending=False)
+        )
+
     df_decline = (
         df_merged[significant_mask & (df_merged["sales_diff"] < 0)]
         .sort_values(by="sales_diff", ascending=True)
     )
+    if len(df_decline) < 10:
+        df_decline = (
+            df_merged[df_merged["sales_diff"] < 0]
+            .sort_values(by="sales_diff", ascending=True)
+        )
+
 
     # カテゴリ分類（汎用）
     df_week, df_day = apply_categorization(df_week, df_day)

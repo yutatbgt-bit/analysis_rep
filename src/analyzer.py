@@ -1,8 +1,14 @@
 import os
+import sys
 import glob
 import re
 import pandas as pd
 import numpy as np
+
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+from category_loader import apply_categories
 
 def extract_start_date_from_csv(file_path):
     """
@@ -101,6 +107,39 @@ def load_and_clean_csv(file_path):
             
     return df
 
+import csv
+
+
+def extract_total_row(file_path):
+    """CSVから合計行を安全かつ正確に抽出する（クォート内のカンマに対応）。"""
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if not row:
+                        continue
+                    row_str = " ".join(row)
+                    if "合計" in row_str:
+                        return [str(c).strip() for c in row]
+        except Exception:
+            continue
+    return None
+
+
+
+def _get_val_from_row(row, idx, default="0"):
+    """リストまたはSeriesから安全にインデックス位置の値を取得する。"""
+    if row is None:
+        return default
+    try:
+        if hasattr(row, "iloc"):
+            return str(row.iloc[idx])
+        return str(row[idx])
+    except (IndexError, KeyError):
+        return default
+
+
 def analyze_and_compare(file_newer, file_older, label_newer, label_older):
     """
     2つのCSVファイルを比較分析し、目次、マークダウンテーブル、動的解説文を含むリッチレポートを生成します。
@@ -108,42 +147,24 @@ def analyze_and_compare(file_newer, file_older, label_newer, label_older):
     df_week = load_and_clean_csv(file_older)
     df_day = load_and_clean_csv(file_newer)
 
-    try:
-        df_raw_week = pd.read_csv(file_older, encoding='utf-8-sig', nrows=10)
-    except Exception:
-        df_raw_week = pd.read_csv(file_older, encoding='cp932', nrows=10)
-
-    try:
-        df_raw_day = pd.read_csv(file_newer, encoding='utf-8-sig', nrows=10)
-    except Exception:
-        df_raw_day = pd.read_csv(file_newer, encoding='cp932', nrows=10)
-
-    total_row_week = None
-    for idx, row in df_raw_week.iterrows():
-        if '合計' in str(row.values):
-            total_row_week = row
-            break
-
-    total_row_day = None
-    for idx, row in df_raw_day.iterrows():
-        if '合計' in str(row.values):
-            total_row_day = row
-            break
+    total_row_week = extract_total_row(file_older)
+    total_row_day = extract_total_row(file_newer)
 
     # 1. 売上実績の全体対比数値の抽出と計算
     try:
-        older_sales_val = float(str(total_row_week.iloc[2]).replace(',', '')) if total_row_week is not None else 0
-        older_budget_val = float(str(total_row_week.iloc[5]).replace('%', '')) if total_row_week is not None else 0
+        older_sales_val = float(_get_val_from_row(total_row_week, 2, "0").replace(",", "").replace("¥", ""))
+        older_budget_val = float(_get_val_from_row(total_row_week, 5, "0").replace("%", ""))
     except Exception:
         older_sales_val = 0
         older_budget_val = 0
 
     try:
-        newer_sales_val = float(str(total_row_day.iloc[2]).replace(',', '')) if total_row_day is not None else 0
-        newer_budget_val = float(str(total_row_day.iloc[5]).replace('%', '')) if total_row_day is not None else 0
+        newer_sales_val = float(_get_val_from_row(total_row_day, 2, "0").replace(",", "").replace("¥", ""))
+        newer_budget_val = float(_get_val_from_row(total_row_day, 5, "0").replace("%", ""))
     except Exception:
         newer_sales_val = 0
         newer_budget_val = 0
+
 
     diff_sales = newer_sales_val - older_sales_val
     ratio_sales = (newer_sales_val / older_sales_val * 100) if older_sales_val > 0 else 0
@@ -260,7 +281,10 @@ def analyze_and_compare(file_newer, file_older, label_newer, label_older):
     output.append(f"| :--- | :--- | :--- | :--- | :--- | :--- |")
     df_growth = df_merged[
         (df_merged['sales_daily_week'] >= 1000) | (df_merged['sales_daily_day'] >= 5000)
-    ].sort_values(by='sales_diff', ascending=False).head(15)
+    ].sort_values(by='sales_diff', ascending=False)
+    if len(df_growth[df_growth['sales_diff'] > 0]) < 15:
+        df_growth = df_merged.sort_values(by='sales_diff', ascending=False)
+    df_growth = df_growth[df_growth['sales_diff'] > 0].head(15)
 
     for idx, row in enumerate(df_growth.itertuples(), 1):
         output.append(f"| {idx} | {row.name} | {row.sales_daily_week:,.0f}円 | {row.sales_daily_day:,.0f}円 | **{row.sales_diff:+,.0f}円** | {row.sales_growth_ratio*100:.1f}% |")
@@ -271,7 +295,11 @@ def analyze_and_compare(file_newer, file_older, label_newer, label_older):
     output.append(f"| :--- | :--- | :--- | :--- | :--- | :--- |")
     df_decline = df_merged[
         (df_merged['sales_daily_week'] >= 1000) | (df_merged['sales_daily_day'] >= 5000)
-    ].sort_values(by='sales_diff', ascending=True).head(15)
+    ].sort_values(by='sales_diff', ascending=True)
+    if len(df_decline[df_decline['sales_diff'] < 0]) < 15:
+        df_decline = df_merged.sort_values(by='sales_diff', ascending=True)
+    df_decline = df_decline[df_decline['sales_diff'] < 0].head(15)
+
 
     for idx, row in enumerate(df_decline.itertuples(), 1):
         output.append(f"| {idx} | {row.name} | {row.sales_daily_week:,.0f}円 | {row.sales_daily_day:,.0f}円 | **{row.sales_diff:+,.0f}円** | {row.sales_growth_ratio*100:.1f}% |")
@@ -289,30 +317,8 @@ def analyze_and_compare(file_newer, file_older, label_newer, label_older):
     output.append(f"* **日商増加要因**: {growth_desc}")
     output.append(f"* **日商減少要因**: {decline_desc}")
 
-    # 4. カテゴリ別シフトセクション
-    def categorize(name):
-        name = str(name)
-        if any(k in name for k in ['バウムクーヘン', 'マドレーヌ', 'フィナンシェ', 'ドーナツ', 'バルン', 'ケーキ', 'プリン', 'ゼリー', 'タルト', '大福', '大福もち', 'わらびもち', '和菓子', 'シュークリーム']):
-            return 'スイーツ・洋菓子'
-        elif any(k in name for k in ['弁当', '重', '丼', 'すし', '寿司', '巻']):
-            return 'お弁当・寿司'
-        elif any(k in name for k in ['サラダ', '和え', 'ナムル', '揚げ浸し', 'マリネ', '惣菜', 'カツレツ', 'ハンバーグ', 'コロッケ', '春巻', '餃子', 'シューマイ', '唐揚', '筑前煮', '煮物', 'ポテト']):
-            return '惣菜・おかず'
-        elif any(k in name for k in ['バッグ', 'エコバッグ']):
-            return '雑貨・バッグ'
-        elif any(k in name for k in ['肉', '牛', '豚', '鶏', 'ローストビーフ', 'ステーキ', 'ミンチ', 'カルビ', '鶏肉', '豚肉', '牛肉']):
-            return '精肉・肉加工品'
-        elif any(k in name for k in ['刺身', '鯛', '鮭', '鮪', 'うなぎ', '魚', '海老', 'イカ', 'タコ', 'ちりめん', 'しらす', '蒲焼き']):
-            return '水産・魚加工品'
-        elif any(k in name for k in ['パン', 'ブレッド', 'トースト', 'クロワッサン', 'ロールパン', 'サンドイッチ']):
-            return 'ベーカリー'
-        elif any(k in name for k in ['牛乳', 'ヨーグルト', 'チーズ', 'バター', '卵', 'たまご', '豆腐', '納豆', 'キムチ', 'こんにゃく']):
-            return '日配品・デイリー'
-        else:
-            return 'その他'
-
-    df_week['category'] = df_week['name'].apply(categorize)
-    df_day['category'] = df_day['name'].apply(categorize)
+    # 4. カテゴリ別シフトセクション（設定ファイル連携）
+    df_week, df_day = apply_categories(df_week, df_day)
 
     cat_week = df_week.groupby('category').agg(
         sales_daily_avg=('sales_daily', 'sum')
