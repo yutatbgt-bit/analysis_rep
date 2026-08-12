@@ -25,12 +25,14 @@ DEFAULT_CONFIG_CANDIDATES = [
 
 
 def normalize_code(code_val) -> str:
-    """商品コードを検索用文字列に正規化する。"""
+    """商品コードを検索用文字列に正規化する（小数点除去・13桁ゼロ埋め）。"""
     if code_val is None or pd.isna(code_val):
         return ""
     s = str(code_val).strip()
-    if s.endswith(".0"):
-        s = s[:-2]
+    if "." in s:
+        s = s.split(".")[0]
+    if s.isdigit():
+        return s.zfill(13)
     return s
 
 

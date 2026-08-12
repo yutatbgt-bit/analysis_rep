@@ -143,6 +143,18 @@ def find_csv_files():
 # CSV 読み込み・クリーニング
 # ---------------------------------------------------------------------------
 
+def normalize_code(code_val) -> str:
+    """商品コードを検索用文字列に正規化する（小数点除去・13桁ゼロ埋め）。"""
+    if code_val is None or pd.isna(code_val):
+        return ""
+    s = str(code_val).strip()
+    if "." in s:
+        s = s.split(".")[0]
+    if s.isdigit():
+        return s.zfill(13)
+    return s
+
+
 def load_and_clean_csv(file_path):
     """CSVファイルを読み込み、クリーニング済みDataFrameを返す。"""
     try:
@@ -170,7 +182,7 @@ def load_and_clean_csv(file_path):
     df = df.dropna(subset=["name"])
     df = df[df["name"] != "合計"]
     df = df.dropna(subset=["code"])
-    df["code"] = df["code"].astype(str).str.strip()
+    df["code"] = df["code"].apply(normalize_code)
     df = df[~df["code"].str.contains("商品コード")]
 
     numeric_cols = [
