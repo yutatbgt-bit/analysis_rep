@@ -630,6 +630,14 @@ def generate_html_report(
     cat_bar_labels = list(bar_top.index)
     cat_bar_week_data = [float(x) for x in bar_top["sales_daily_avg_week"]]
     cat_bar_day_data = [float(x) for x in bar_top["sales_daily_avg_day"]]
+    
+    # 対比（比率）データ = (比較対象 / 比較基準) * 100
+    cat_bar_ratio_data = []
+    for week_val, day_val in zip(cat_bar_week_data, cat_bar_day_data):
+        if week_val > 0:
+            cat_bar_ratio_data.append(round((day_val / week_val) * 100, 1))
+        else:
+            cat_bar_ratio_data.append(0.0)
 
     # 円グラフデータ（売上上位7カテゴリ＋その他合算）
     if len(cat_active) > 8:
@@ -1158,18 +1166,33 @@ def generate_html_report(
                     labels: {cat_bar_labels_js},
                     datasets: [
                         {{
+                            label: '対比',
+                            type: 'line',
+                            data: {cat_bar_ratio_data_js},
+                            backgroundColor: '#fbbf24',
+                            borderColor: '#fbbf24',
+                            borderWidth: 2,
+                            fill: false,
+                            yAxisID: 'y1',
+                            tension: 0.1
+                        }},
+                        {{
                             label: '比較基準',
+                            type: 'bar',
                             data: {cat_bar_week_data_js},
                             backgroundColor: '#475569',
                             borderColor: '#64748b',
-                            borderWidth: 1
+                            borderWidth: 1,
+                            yAxisID: 'y'
                         }},
                         {{
                             label: '比較対象',
+                            type: 'bar',
                             data: {cat_bar_day_data_js},
                             backgroundColor: '#60a5fa',
                             borderColor: '#3b82f6',
-                            borderWidth: 1
+                            borderWidth: 1,
+                            yAxisID: 'y'
                         }}
                     ]
                 }},
@@ -1178,6 +1201,9 @@ def generate_html_report(
                     maintainAspectRatio: false,
                     scales: {{
                         y: {{
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
                             beginAtZero: true,
                             ticks: {{
                                 color: '#94a3b8',
@@ -1186,6 +1212,27 @@ def generate_html_report(
                                 }}
                             }},
                             grid: {{
+                                color: '#2d3348'
+                            }}
+                        }},
+                        y1: {{
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {{
+                                display: true,
+                                text: '対比 (%)',
+                                color: '#94a3b8'
+                            }},
+                            ticks: {{
+                                color: '#94a3b8',
+                                callback: function(value) {{
+                                    return value + '%';
+                                }}
+                            }},
+                            grid: {{
+                                drawOnChartArea: false,
                                 color: '#2d3348'
                             }}
                         }},
@@ -1214,6 +1261,9 @@ def generate_html_report(
                         tooltip: {{
                             callbacks: {{
                                 label: function(context) {{
+                                    if (context.dataset.type === 'line') {{
+                                        return context.dataset.label + ': ' + context.raw + '%';
+                                    }}
                                     return context.dataset.label + ': ¥' + context.raw.toLocaleString();
                                 }}
                             }}
@@ -1289,6 +1339,7 @@ def generate_html_report(
         cat_bar_labels_js=json.dumps(cat_bar_labels, ensure_ascii=False),
         cat_bar_week_data_js=json.dumps(cat_bar_week_data),
         cat_bar_day_data_js=json.dumps(cat_bar_day_data),
+        cat_bar_ratio_data_js=json.dumps(cat_bar_ratio_data),
         cat_pie_labels_js=json.dumps(cat_pie_labels, ensure_ascii=False),
         cat_pie_data_js=json.dumps(cat_pie_data),
         pie_colors_js=json.dumps(pie_colors),
