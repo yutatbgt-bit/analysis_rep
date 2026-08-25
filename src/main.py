@@ -607,11 +607,11 @@ def generate_html_report(
     for cat, row in cat_active.iterrows():
         diff_val = row.ratio_day - row.ratio_week
         diff_class = "badge-up" if diff_val >= 0 else "badge-down"
-        diff_sign = "+" if diff_val >= 0 else ""
+        diff_str = f"+{diff_val:.2f}%" if diff_val >= 0 else f"{diff_val:.2f}%"
         
         sales_diff = row.sales_daily_avg_day - row.sales_daily_avg_week
         sales_diff_class = "badge-up" if sales_diff >= 0 else "badge-down"
-        sales_diff_sign = "+" if sales_diff >= 0 else ""
+        sales_diff_str = f"+¥{sales_diff:,.0f}" if sales_diff >= 0 else f"-¥{abs(sales_diff):,.0f}"
 
         category_table_rows.append(f"""
         <tr>
@@ -619,9 +619,9 @@ def generate_html_report(
             <td style="text-align: right;">¥{row.sales_daily_avg_week:,.0f}</td>
             <td style="text-align: right;">{row.ratio_week:.2f}%</td>
             <td style="text-align: right;">¥{row.sales_daily_avg_day:,.0f}</td>
-            <td style="text-align: right; font-weight: 600;" class="{sales_diff_class}">{sales_diff_sign}¥{sales_diff:,.0f}</td>
+            <td style="text-align: right; font-weight: 600; white-space: nowrap;" class="{sales_diff_class}">{sales_diff_str}</td>
             <td style="text-align: right;">{row.ratio_day:.2f}%</td>
-            <td style="text-align: right; font-weight: 600;" class="{diff_class}">{diff_sign}{diff_val:.2f}%</td>
+            <td style="text-align: right; font-weight: 600; white-space: nowrap;" class="{diff_class}">{diff_str}</td>
         </tr>""")
     category_table_rows = "\n".join(category_table_rows)
 
