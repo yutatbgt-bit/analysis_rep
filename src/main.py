@@ -272,40 +272,85 @@ def generate_category_commentary(cat_compare):
 
     cat_compare = cat_compare.copy()
     cat_compare["ratio_diff"] = cat_compare["ratio_day"] - cat_compare["ratio_week"]
+    cat_compare["sales_diff"] = cat_compare["sales_daily_avg_day"] - cat_compare["sales_daily_avg_week"]
 
     # 構成比が上昇したカテゴリ（差分降順）
-    rising = cat_compare[cat_compare["ratio_diff"] > 0.01].sort_values(
+    rising_ratio = cat_compare[cat_compare["ratio_diff"] > 0.01].sort_values(
         "ratio_diff", ascending=False
     )
     # 構成比が下降したカテゴリ（差分昇順）
-    falling = cat_compare[cat_compare["ratio_diff"] < -0.01].sort_values(
+    falling_ratio = cat_compare[cat_compare["ratio_diff"] < -0.01].sort_values(
         "ratio_diff", ascending=True
+    )
+    
+    # 日商が上昇したカテゴリ（差分降順）
+    rising_sales = cat_compare[cat_compare["sales_diff"] > 0].sort_values(
+        "sales_diff", ascending=False
+    )
+    # 日商が下降したカテゴリ（差分昇順）
+    falling_sales = cat_compare[cat_compare["sales_diff"] < 0].sort_values(
+        "sales_diff", ascending=True
     )
 
     items = []
 
-    if not rising.empty:
+    # 1. 日商上昇カテゴリ
+    if not rising_sales.empty:
         parts = []
-        for cat_name, row in rising.head(3).iterrows():
+        for cat_name, row in rising_sales.head(3).iterrows():
             parts.append(
-                f"「{cat_name}」（<strong>+{row['ratio_diff']:.2f}%</strong>）"
+                f"「{cat_name}」（<strong>+¥{row['sales_diff']:,.0f}</strong>）"
             )
         items.append(
             '<div class="commentary-item">'
+            "<strong>日商が上昇したカテゴリ:</strong> "
+            + "、".join(parts)
+            + " が比較対象で日商を伸ばしています。"
+            "</div>"
+        )
+
+    # 2. 日商下降カテゴリ
+    if not falling_sales.empty:
+        parts = []
+        for cat_name, row in falling_sales.head(3).iterrows():
+            parts.append(
+                f"「{cat_name}」（<strong>¥{row['sales_diff']:,.0f}</strong>）"
+            )
+        margin_top = "12px" if items else "0px"
+        items.append(
+            f'<div class="commentary-item" style="margin-top: {margin_top};">'
+            "<strong>日商が下降したカテゴリ:</strong> "
+            + "、".join(parts)
+            + " が比較対象で日商を落としています。"
+            "</div>"
+        )
+
+    # 3. 構成比上昇カテゴリ
+    if not rising_ratio.empty:
+        parts = []
+        for cat_name, row in rising_ratio.head(3).iterrows():
+            parts.append(
+                f"「{cat_name}」（<strong>+{row['ratio_diff']:.2f}%</strong>）"
+            )
+        margin_top = "12px" if items else "0px"
+        items.append(
+            f'<div class="commentary-item" style="margin-top: {margin_top};">'
             "<strong>構成比が上昇したカテゴリ:</strong> "
             + "、".join(parts)
             + " が比較対象で構成比を伸ばしています。"
             "</div>"
         )
 
-    if not falling.empty:
+    # 4. 構成比下降カテゴリ
+    if not falling_ratio.empty:
         parts = []
-        for cat_name, row in falling.head(3).iterrows():
+        for cat_name, row in falling_ratio.head(3).iterrows():
             parts.append(
                 f"「{cat_name}」（<strong>{row['ratio_diff']:.2f}%</strong>）"
             )
+        margin_top = "12px" if items else "0px"
         items.append(
-            '<div class="commentary-item" style="margin-top: 12px;">'
+            f'<div class="commentary-item" style="margin-top: {margin_top};">'
             "<strong>構成比が下降したカテゴリ:</strong> "
             + "、".join(parts)
             + " が比較対象で構成比を落としています。"
@@ -313,11 +358,10 @@ def generate_category_commentary(cat_compare):
         )
 
     if not items:
-        # カテゴリが1つしかない場合
+        # カテゴリが1つしかない場合など
         items.append(
             '<div class="commentary-item">'
-            "すべての商品が同一カテゴリに属しているため、"
-            "カテゴリ間の構成比シフトはありません。"
+            "カテゴリ間の目立った日商・構成比シフトはありませんでした。"
             "個別商品の変動分析をご確認ください。"
             "</div>"
         )
