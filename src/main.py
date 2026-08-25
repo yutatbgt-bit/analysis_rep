@@ -109,23 +109,10 @@ def extract_total_row(file_path):
 # CSV ファイル探索
 # ---------------------------------------------------------------------------
 
-def _extract_timestamp(file_path):
-    """ファイル名末尾のタイムスタンプ数字列を抽出する。
-
-    例: '販売管理表(単品別売上実績)-202607272049.csv' → '202607272049'
-    """
-    basename = os.path.splitext(os.path.basename(file_path))[0]
-    match = re.search(r"(\d{12,14})$", basename)
-    if match:
-        return match.group(1)
-    match = re.search(r"-(\d{8,14})", basename)
-    return match.group(1) if match else ""
-
-
 def find_csv_files():
-    """input_data/ 内のCSVファイルを自動検出し、タイムスタンプ順で割当てる。
+    """input_data/ 内のCSVファイルを自動検出し、データの日付順で割当てる。
 
-    タイムスタンプが古い方を比較基準(week)、新しい方を比較対象(day)として返す。
+    データ内の対象期間が古い方を比較基準(week)、新しい方を比較対象(day)として返す。
     """
     csv_files = glob.glob("input_data/*.csv")
     csv_files = [f for f in csv_files if os.path.isfile(f)]
@@ -133,7 +120,7 @@ def find_csv_files():
     if len(csv_files) < 2:
         return None, None
 
-    csv_files.sort(key=_extract_timestamp)
+    csv_files.sort(key=extract_period_label)
     file_week = csv_files[0]
     file_day = csv_files[-1]
     return file_week, file_day
