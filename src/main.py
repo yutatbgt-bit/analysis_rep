@@ -564,12 +564,18 @@ def generate_html_report(
         diff_val = row.ratio_day - row.ratio_week
         diff_class = "badge-up" if diff_val >= 0 else "badge-down"
         diff_sign = "+" if diff_val >= 0 else ""
+        
+        sales_diff = row.sales_daily_avg_day - row.sales_daily_avg_week
+        sales_diff_class = "badge-up" if sales_diff >= 0 else "badge-down"
+        sales_diff_sign = "+" if sales_diff >= 0 else ""
+
         category_table_rows.append(f"""
         <tr>
             <td style="font-weight: 600; color: var(--primary);">{cat}</td>
             <td style="text-align: right;">¥{row.sales_daily_avg_week:,.0f}</td>
             <td style="text-align: right;">{row.ratio_week:.2f}%</td>
             <td style="text-align: right;">¥{row.sales_daily_avg_day:,.0f}</td>
+            <td style="text-align: right; font-weight: 600;" class="{sales_diff_class}">{sales_diff_sign}¥{sales_diff:,.0f}</td>
             <td style="text-align: right;">{row.ratio_day:.2f}%</td>
             <td style="text-align: right; font-weight: 600;" class="{diff_class}">{diff_sign}{diff_val:.2f}%</td>
         </tr>""")
@@ -931,6 +937,7 @@ def generate_html_report(
                                 <th style="text-align: right;">比較基準 日商平均</th>
                                 <th style="text-align: right;">比較基準 構成比</th>
                                 <th style="text-align: right;">比較対象 日商</th>
+                                <th style="text-align: right;">日商差分</th>
                                 <th style="text-align: right;">比較対象 構成比</th>
                                 <th style="text-align: right;">構成比差分</th>
                             </tr>
