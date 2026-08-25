@@ -929,7 +929,7 @@ def generate_html_report(
         <header id="header-main">
             <div class="header-title-area">
                 <div>
-                    <h1>売上実績＆売れ筋商品 比較分析ダッシュボード</h1>
+                    <h1>比較分析ダッシュボード</h1>
                 </div>
                 <div class="header-meta">
                     {header_meta}
@@ -1074,7 +1074,7 @@ def generate_html_report(
 
         <!-- 4. 売れ筋ランキング比較テーブル -->
         <div class="table-card" id="card-rankings">
-            <h3 class="section-title">4. 売れ筋商品ランキング比較 (Top 15 - 日商ベース)</h3>
+            <h3 class="section-title">4. 単品売上実績比較 (Best15 - 日商ベース)</h3>
 
             <div class="tab-menu" role="tablist">
                 <button class="tab-btn active" onclick="switchTab('week')" role="tab" aria-selected="true" id="tab-btn-week">比較基準: {label_week}</button>
