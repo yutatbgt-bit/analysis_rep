@@ -1016,7 +1016,7 @@ def generate_html_report(
 
         <!-- カテゴリ別日商対比棒グラフ -->
         <div class="chart-card" style="margin-bottom: 40px;">
-            <h3 class="section-title" style="border-bottom: none; margin-bottom: 0;">カテゴリ別日商対比 (比較基準 vs 比較対象)</h3>
+            <h3 class="section-title" style="border-bottom: none; margin-bottom: 0;">カテゴリ別日商対比（比較基準・比較対象）</h3>
             <div class="chart-container" style="margin-top: 20px;">
                 <canvas id="categoryBarChart"></canvas>
             </div>
