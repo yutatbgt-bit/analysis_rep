@@ -931,8 +931,12 @@ def generate_html_report(
                 <div>
                     <h1>比較分析ダッシュボード</h1>
                 </div>
-                <div class="header-meta">
+                <div class="header-meta" style="display: flex; align-items: center;">
                     {header_meta}
+                    <button id="fullscreen-btn" onclick="toggleFullScreen()" style="margin-left: 16px; background-color: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; display: flex; align-items: center;" onmouseover="this.style.color='var(--primary)'; this.style.borderColor='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border-color)'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                        <span id="fullscreen-text">全画面表示</span>
+                    </button>
                 </div>
             </div>
         </header>
@@ -1132,6 +1136,22 @@ def generate_html_report(
 
     <!-- チャートデータの流し込みと制御スクリプト -->
     <script>
+        // 全画面表示ロジック
+        function toggleFullScreen() {{
+            const doc = window.document;
+            const docEl = doc.documentElement;
+            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {{
+                requestFullScreen.call(docEl);
+                document.getElementById('fullscreen-text').textContent = '元に戻す';
+            }} else {{
+                cancelFullScreen.call(doc);
+                document.getElementById('fullscreen-text').textContent = '全画面表示';
+            }}
+        }}
+
         // タブ切替ロジック
         function switchTab(tab) {{
             const btnWeek = document.getElementById('tab-btn-week');
