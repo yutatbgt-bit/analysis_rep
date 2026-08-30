@@ -3133,11 +3133,11 @@
 
                 let targetParetoDataset = currentDataset;
                 const paretoCatFilter = categoryFilter.value;
-                if (paretoCatFilter && paretoCatFilter !== \'ALL\') {
-                    targetParetoDataset = currentDataset.filter(item => item[\'カテゴリー\'] === paretoCatFilter);
+                if (paretoCatFilter && paretoCatFilter !== 'ALL') {
+                    targetParetoDataset = currentDataset.filter(item => item['カテゴリー'] === paretoCatFilter);
                 }
                 const sortedProducts = [...targetParetoDataset]
-                    .sort((a, b) => b[\'売上高_実績\'] - a[\'売上高_実績\'])
+                    .sort((a, b) => b['売上高_実績'] - a['売上高_実績'])
                     .slice(0, 200);
 
                 if (sortedProducts.length === 0) return;
