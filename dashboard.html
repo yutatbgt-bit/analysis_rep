@@ -3252,7 +3252,14 @@
 
                         },
 
-                        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                        plugins: { title: {
+                                display: true,
+                                text: (paretoCatFilter === 'ALL' ? '全カテゴリー' : paretoCatFilter) + 'のパレート図',
+                                color: '#f1f5f9',
+                                font: { size: 16 }
+                            },
+                            legend: { display: false },
+                            tooltip: { enabled: false } }
 
                     }
 
