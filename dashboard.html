@@ -3131,13 +3131,24 @@
 
                 // 全商品を表示対象とする (全品表示 -> Canvas解像度超過クラッシュ防止のため売上上位200品に制限)
 
-                let targetParetoDataset = currentDataset;
-                const paretoCatFilter = categoryFilter.value;
-                if (paretoCatFilter && paretoCatFilter !== 'ALL') {
-                    targetParetoDataset = currentDataset.filter(item => item['カテゴリー'] === paretoCatFilter);
+                // 表のデータをそのまま取得（検索やABC絞り込みも反映される）
+                let targetParetoDataset = [];
+                if (activeTab === 'sales-ranking') {
+                    // 現在の表のデータを取得
+                    const filteredForTable = getFilteredData();
+                    targetParetoDataset = [...filteredForTable];
+                } else {
+                    // もし別のタブにいる場合は、独自にフィルターする
+                    const catFilter = categoryFilter.value;
+                    targetParetoDataset = [...currentDataset];
+                    if (catFilter !== 'ALL') {
+                        targetParetoDataset = targetParetoDataset.filter(item => item['カテゴリー'] === catFilter);
+                    }
                 }
+                
+                // パレート図用に売上高降順で再ソート（※表のソート状態とは独立させる）
                 const sortedProducts = [...targetParetoDataset]
-                    .sort((a, b) => b['売上高_実績'] - a['売上高_実績'])
+                    .sort((a, b) => (b['売上高_実績'] || 0) - (a['売上高_実績'] || 0))
                     .slice(0, 200);
 
                 if (sortedProducts.length === 0) return;
