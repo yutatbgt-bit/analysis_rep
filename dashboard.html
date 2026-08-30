@@ -1853,11 +1853,9 @@
                     // フィルターイベント
 
                     categoryFilter.addEventListener('change', () => {
-
                         currentPage = 1;
-
                         renderTable();
-
+                        renderCharts();
                     });
 
                     abcFilter.addEventListener('change', () => {
