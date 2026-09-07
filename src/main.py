@@ -4,7 +4,8 @@
 input_data/ 内のCSVファイル2つを読み込み、日商ベースで比較分析した
 HTMLダッシュボードを output_data/ に生成する。
 
-タイムスタンプが古い方を「比較基準」、新しい方を「比較対象」として自動割当てする。
+データの対象期間が古い方を「比較基準」、新しい方を「比較対象」として自動割当てする。
+（同期間の場合はファイルのタイムスタンプが古い方を比較基準とする。）
 分析コメント・カテゴリ分類・ヘッダー情報はすべてCSVデータから動的に生成する。
 """
 import os
@@ -12,12 +13,20 @@ import json
 import glob
 import logging
 import re
+import html
 
 import numpy as np
 import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+# 合計行の列インデックス定義
+COL_TOTAL_SALES_DAILY = 2
+COL_TOTAL_DISCARD_RATIO = 14
+COL_TOTAL_DISCOUNT_RATIO = 15
+COL_TOTAL_LOSS_TOTAL_RATIO = 16
+
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +122,7 @@ def find_csv_files():
     """input_data/ 内のCSVファイルを自動検出し、データの日付順で割当てる。
 
     データ内の対象期間が古い方を比較基準(week)、新しい方を比較対象(day)として返す。
+    同期間の場合はファイルの更新日時（タイムスタンプ）が古い方を比較基準とする。
     """
     csv_files = glob.glob("input_data/*.csv")
     csv_files = [f for f in csv_files if os.path.isfile(f)]
@@ -120,7 +130,8 @@ def find_csv_files():
     if len(csv_files) < 2:
         return None, None
 
-    csv_files.sort(key=extract_period_label)
+    # 対象期間文字列、ファイル更新日時の順でソート
+    csv_files.sort(key=lambda f: (extract_period_label(f), os.path.getmtime(f)))
     file_week = csv_files[0]
     file_day = csv_files[-1]
     return file_week, file_day
@@ -212,57 +223,94 @@ def apply_categorization(df_week, df_day):
 # 動的コメント生成
 # ---------------------------------------------------------------------------
 
-def generate_overall_commentary(week_avg_val, day_sales_val, comp_ratio,
-                                week_budget, day_budget, label_week, label_day):
-    """セクション1: 売上実績の全体対比コメントを動的生成する。"""
+def _parse_percentage(val) -> float:
+    """パーセンテージ表記文字列または数値をfloatに変換する。"""
+    try:
+        return float(str(val).replace("%", "").replace(",", "").strip())
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def generate_loss_commentary(total_row_week, total_row_day) -> str:
+    """合計行データからロス率分析コメントを動的に生成する。"""
+    week_loss_str = _get_val_from_row(total_row_week, COL_TOTAL_LOSS_TOTAL_RATIO, "")
+    day_loss_str = _get_val_from_row(total_row_day, COL_TOTAL_LOSS_TOTAL_RATIO, "")
+    week_discard_str = _get_val_from_row(total_row_week, COL_TOTAL_DISCARD_RATIO, "")
+    day_discard_str = _get_val_from_row(total_row_day, COL_TOTAL_DISCARD_RATIO, "")
+    week_discount_str = _get_val_from_row(total_row_week, COL_TOTAL_DISCOUNT_RATIO, "")
+    day_discount_str = _get_val_from_row(total_row_day, COL_TOTAL_DISCOUNT_RATIO, "")
+
+    week_loss_val = _parse_percentage(week_loss_str)
+    day_loss_val = _parse_percentage(day_loss_str)
+    week_discard_val = _parse_percentage(week_discard_str)
+    day_discard_val = _parse_percentage(day_discard_str)
+    week_discount_val = _parse_percentage(week_discount_str)
+    day_discount_val = _parse_percentage(day_discount_str)
+
+    if week_loss_val <= 0 and day_loss_val <= 0:
+        return "ロス率データが未設定または0%のため、分析をスキップします。"
+
+    diff_loss = day_loss_val - week_loss_val
+
+    if diff_loss > 0.05:
+        status_text = f"<strong>{diff_loss:+.1f}ポイント悪化（上昇）</strong>"
+    elif diff_loss < -0.05:
+        status_text = f"<strong>{abs(diff_loss):.1f}ポイント改善（低下）</strong>"
+    else:
+        status_text = f"<strong>ほぼ同水準（{diff_loss:+.1f}ポイント）</strong>"
+
+    breakdown_items = []
+    if week_discard_str or day_discard_str:
+        breakdown_items.append(f"廃棄ロス率: {week_discard_val:.1f}% ➔ {day_discard_val:.1f}%")
+    if week_discount_str or day_discount_str:
+        breakdown_items.append(f"値引ロス率: {week_discount_val:.1f}% ➔ {day_discount_val:.1f}%")
+
+    breakdown_text = f"（内訳: {'、'.join(breakdown_items)}）" if breakdown_items else ""
+
+    factor_text = ""
+    if diff_loss > 0.05:
+        if day_discount_val > week_discount_val and day_discard_val <= week_discard_val:
+            factor_text = " 廃棄ロスは抑制傾向にありますが、売価変更（値引き）によるロスの拡大が全体を押し上げています。"
+        elif day_discard_val > week_discard_val:
+            factor_text = " 見切り・廃棄によるロスの上昇が主因となっており、需要予測や発注ロットの見直しが推奨されます。"
+        else:
+            factor_text = " 売上減少に伴うロス率の相対的な上昇が見受けられます。"
+    elif diff_loss < -0.05:
+        factor_text = " 適切な在庫回転と販売計画の徹底により、無駄のない店舗運用が実現できています。"
+    else:
+        factor_text = " 比較基準と同等のロス管理水準を維持できています。"
+
+    return (
+        f"ロス率は比較基準が <strong>{week_loss_val:.1f}%</strong>、"
+        f"比較対象が <strong>{day_loss_val:.1f}%</strong> と、{status_text} しています。"
+        f"{breakdown_text}{factor_text}"
+    )
+
+
+def generate_overall_commentary(
+    week_avg_val,
+    day_sales_val,
+    comp_ratio,
+    label_week,
+    label_day,
+    total_row_week,
+    total_row_day,
+):
+    """セクション1: 売上実績の全体対比コメント（日商の推移・ロス率分析）を動的生成する。"""
     change_pct = abs(comp_ratio - 100)
     direction = "増加" if comp_ratio >= 100 else "減少"
 
-    # 変動率の記述
+    # 日商の推移
     sales_commentary = (
         f"比較対象データ（{label_day}）の日商は、比較基準データ"
         f"（{label_week}）の日商（¥{week_avg_val:,.0f}）と比較して "
         f"<strong>約{change_pct:.0f}%{direction}</strong> しています。"
     )
 
-    # 予算比の分析
-    try:
-        week_budget_val = float(str(week_budget).replace("%", "").replace(",", ""))
-        day_budget_val = float(str(day_budget).replace("%", "").replace(",", ""))
-    except (ValueError, TypeError):
-        week_budget_val = 0.0
-        day_budget_val = 0.0
+    # ロス率分析
+    loss_commentary = generate_loss_commentary(total_row_week, total_row_day)
 
-    if week_budget_val > 0 and day_budget_val > 0:
-        if week_budget_val >= 100 and day_budget_val >= 100:
-            budget_commentary = (
-                f"予算比は比較基準が <strong>{week_budget}</strong>、"
-                f"比較対象が <strong>{day_budget}</strong> と、"
-                "いずれも予算を上回っており好調な推移です。"
-            )
-        elif week_budget_val >= 100 and day_budget_val < 100:
-            budget_commentary = (
-                f"予算比は比較基準が <strong>{week_budget}</strong> と予算超過だったのに対し、"
-                f"比較対象は <strong>{day_budget}</strong> と予算を下回っています。"
-                "比較基準期間の好調要因（季節需要・特売等）が"
-                "比較対象期間では弱まった可能性があります。"
-            )
-        elif week_budget_val < 100 and day_budget_val >= 100:
-            budget_commentary = (
-                f"予算比は比較基準が <strong>{week_budget}</strong> と予算未達だったのに対し、"
-                f"比較対象は <strong>{day_budget}</strong> と予算超過に転じています。"
-                "需要の回復や販促効果が考えられます。"
-            )
-        else:
-            budget_commentary = (
-                f"予算比は比較基準が <strong>{week_budget}</strong>、"
-                f"比較対象が <strong>{day_budget}</strong> と、"
-                "いずれも予算を下回っています。全体的に需要が軟調な状況です。"
-            )
-    else:
-        budget_commentary = ""
-
-    return sales_commentary, budget_commentary
+    return sales_commentary, loss_commentary
 
 
 def generate_category_commentary(cat_compare):
@@ -499,9 +547,10 @@ def generate_html_report(
     budget_badge_class = "badge-up" if comp_diff >= 0 else "badge-down"
 
     # --- 動的コメント生成 ---
-    sales_commentary, budget_commentary = generate_overall_commentary(
+    sales_commentary, loss_commentary = generate_overall_commentary(
         week_avg_val, day_sales_val, comp_ratio,
-        week_budget, day_budget, label_week, label_day,
+        label_week, label_day,
+        total_row_week, total_row_day,
     )
     category_commentary_html = generate_category_commentary(cat_compare)
 
@@ -625,8 +674,8 @@ def generate_html_report(
         </tr>""")
     category_table_rows = "\n".join(category_table_rows)
 
-    # 棒グラフデータ（売上上位12カテゴリ）
-    bar_top = cat_active.head(12)
+    # 棒グラフデータ（売上上位12カテゴリを比較基準でソート）
+    bar_top = cat_active.sort_values("sales_daily_avg_week", ascending=False).head(12)
     cat_bar_labels = list(bar_top.index)
     cat_bar_week_data = [float(x) for x in bar_top["sales_daily_avg_week"]]
     cat_bar_day_data = [float(x) for x in bar_top["sales_daily_avg_day"]]
@@ -975,7 +1024,7 @@ def generate_html_report(
                     <strong>日商の推移:</strong> {sales_commentary}
                 </div>
                 <div class="commentary-item" style="margin-top: 12px;">
-                    <strong>予算比分析:</strong> {budget_commentary}
+                    <strong>ロス率分析:</strong> {loss_commentary}
                 </div>
             </div>
         </div>
@@ -1345,7 +1394,7 @@ def generate_html_report(
         comp_diff_sign=comp_diff_sign,
         budget_badge_class=budget_badge_class,
         sales_commentary=sales_commentary,
-        budget_commentary=budget_commentary,
+        loss_commentary=loss_commentary,
         category_commentary_html=category_commentary_html,
         ranking_commentary_html=ranking_commentary_html,
         growth_list_html=growth_list_html,

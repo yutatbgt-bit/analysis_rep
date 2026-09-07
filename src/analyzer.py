@@ -165,33 +165,32 @@ def analyze_and_compare(file_newer, file_older, label_newer, label_older):
     # 1. 売上実績の全体対比数値の抽出と計算
     try:
         older_sales_val = float(_get_val_from_row(total_row_week, 2, "0").replace(",", "").replace("¥", ""))
-        older_budget_val = float(_get_val_from_row(total_row_week, 5, "0").replace("%", ""))
+        older_loss_val = float(_get_val_from_row(total_row_week, 16, "0").replace("%", ""))
     except Exception:
         older_sales_val = 0
-        older_budget_val = 0
+        older_loss_val = 0
 
     try:
         newer_sales_val = float(_get_val_from_row(total_row_day, 2, "0").replace(",", "").replace("¥", ""))
-        newer_budget_val = float(_get_val_from_row(total_row_day, 5, "0").replace("%", ""))
+        newer_loss_val = float(_get_val_from_row(total_row_day, 16, "0").replace("%", ""))
     except Exception:
         newer_sales_val = 0
-        newer_budget_val = 0
-
+        newer_loss_val = 0
 
     diff_sales = newer_sales_val - older_sales_val
     ratio_sales = (newer_sales_val / older_sales_val * 100) if older_sales_val > 0 else 0
     diff_pct = ((newer_sales_val - older_sales_val) / older_sales_val * 100) if older_sales_val > 0 else 0
 
     trend_word = "増加" if diff_sales >= 0 else "減少"
-    budget_comment = ""
-    if newer_budget_val >= 100 and older_budget_val >= 100:
-        budget_comment = "両期間ともに予算目標を達成しており、非常に好調な推移を維持しています。"
-    elif newer_budget_val < 100 and older_budget_val >= 100:
-        budget_comment = f"古い期間（{label_older}）では予算を上回る好調な推移でしたが、新しい期間（{label_newer}）は {newer_budget_val}% に留まり、目標未達となっています。曜日要因や一時的な需要の落ち着きが影響している可能性があります。"
-    elif newer_budget_val < 100 and older_budget_val < 100:
-        budget_comment = "両期間ともに予算を下回る推移となっており、集客または客単価の改善に向けた対策が必要と考えられます。"
+    diff_loss = newer_loss_val - older_loss_val
+    if diff_loss > 0.05:
+        loss_trend = f"{diff_loss:+.1f}ポイント上昇（悪化）"
+    elif diff_loss < -0.05:
+        loss_trend = f"{abs(diff_loss):.1f}ポイント低下（改善）"
     else:
-        budget_comment = "予算目標に対してはおおむね堅調に推移しています。"
+        loss_trend = f"ほぼ同水準（{diff_loss:+.1f}ポイント）"
+
+    loss_comment = f"ロス率は比較基準が {older_loss_val:.1f}%、比較対象が {newer_loss_val:.1f}% と、**{loss_trend}** しています。"
 
     # レポートマークダウン構築開始
     output = []
@@ -210,15 +209,15 @@ def analyze_and_compare(file_newer, file_older, label_newer, label_older):
 
     # 1. 全体対比セクション
     output.append(f"\n## 1. 売上実績の全体対比 (日商ベース)")
-    output.append(f"\n全体の売上規模（日商）および予算比の対比は以下の通りです。")
-    output.append(f"\n| 期間 | 日商（1日平均売上） | 予算比 | 当日（{label_newer}）との対比 |")
+    output.append(f"\n全体の売上規模（日商）およびロス率の対比は以下の通りです。")
+    output.append(f"\n| 期間 | 日商（1日平均売上） | ロス率 | 当日（{label_newer}）との対比 |")
     output.append(f"| :--- | :--- | :--- | :--- |")
-    output.append(f"| **{label_older}** | {older_sales_val:,.0f}円 | {older_budget_val:.1f}% | - |")
-    output.append(f"| **{label_newer}** | {newer_sales_val:,.0f}円 | {newer_budget_val:.1f}% | {label_older}比 **{ratio_sales:.2f}%** ({diff_pct:+.2f}%) |")
+    output.append(f"| **{label_older}** | {older_sales_val:,.0f}円 | {older_loss_val:.1f}% | - |")
+    output.append(f"| **{label_newer}** | {newer_sales_val:,.0f}円 | {newer_loss_val:.1f}% | {label_older}比 **{ratio_sales:.2f}%** ({diff_pct:+.2f}%) |")
     
     output.append(f"\n### 【分析・解説】")
-    output.append(f"* **日商の変動**: {label_newer} の日商は、{label_older} と比較して **約 {abs(diff_sales):,.0f}円 ({diff_pct:+.2f}%)** {trend_word} しています。")
-    output.append(f"* **予算比の動向**: {budget_comment}")
+    output.append(f"* **日商の推移**: {label_newer} の日商は、{label_older} と比較して **約 {abs(diff_sales):,.0f}円 ({diff_pct:+.2f}%)** {trend_word} しています。")
+    output.append(f"* **ロス率分析**: {loss_comment}")
 
     # 2. ランキング比較セクション
     output.append(f"\n---")
