@@ -315,10 +315,10 @@ function resetUploadData() {
         }
 
 
-        // DOMContentLoaded: 初期状態をブランク（未読込）表示に設定
-        document.addEventListener('DOMContentLoaded', function() {
-            initBlankCharts();
-        });
+
+        // スクリプトは </body> 直前のため DOM は確実に存在する
+        initBlankCharts();
+
 
 
         
@@ -807,8 +807,8 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
     });
 }
 
-// DOM 読み込み完了後にドロップゾーンを初期化（確実に要素が存在する状態で実行）
-document.addEventListener('DOMContentLoaded', function() {
-    setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
-    setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
-});
+
+// ドロップゾーンをページ読み込み時点で即時初期化
+// (スクリプトは </body> 直前に配置されているため DOM は確実に存在する)
+setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
+setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
