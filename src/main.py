@@ -768,6 +768,106 @@ def generate_html_report(
             gap: 16px;
         }}
 
+        .upload-section {{
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
+
+        .upload-group {{
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
+        }}
+
+        .file-drop-zone {{
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 8px 16px;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.02);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            user-select: none;
+        }}
+
+        .file-drop-zone p {{
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0;
+            white-space: nowrap;
+        }}
+
+        /* 基準データボタン */
+        .drop-zone-base {{
+            border-color: rgba(148, 163, 184, 0.3);
+            background-color: rgba(148, 163, 184, 0.04);
+        }}
+
+        .drop-zone-base:hover,
+        .drop-zone-base.drag-over {{
+            border-color: #94a3b8;
+            background-color: rgba(148, 163, 184, 0.12);
+            box-shadow: 0 0 14px rgba(148, 163, 184, 0.25);
+        }}
+
+        .icon-base {{
+            color: #94a3b8;
+        }}
+
+        /* 比較日データボタン */
+        .drop-zone-compare {{
+            border-color: rgba(56, 189, 248, 0.4);
+            background-color: rgba(56, 189, 248, 0.05);
+        }}
+
+        .drop-zone-compare:hover,
+        .drop-zone-compare.drag-over {{
+            border-color: #38bdf8;
+            background-color: rgba(56, 189, 248, 0.12);
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+        }}
+
+        .icon-compare {{
+            color: #38bdf8;
+        }}
+
+        .file-pill {{
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            text-align: center;
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: inline-block;
+        }}
+
+        .pill-base {{
+            color: #94a3b8;
+            background-color: rgba(148, 163, 184, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }}
+
+        .pill-compare {{
+            color: #38bdf8;
+            background-color: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }}
+
+        .hidden {{
+            display: none !important;
+        }}
+
         h1 {{
             font-size: 26px;
             font-weight: 700;
@@ -979,6 +1079,39 @@ def generate_html_report(
             <div class="header-title-area">
                 <div>
                     <h1>比較分析ダッシュボード</h1>
+                </div>
+
+                <!-- コンパクトなアップロードセクション (基準データ・比較日データの2ボタン配置) -->
+                <div class="upload-section">
+                    <!-- 基準データ（比較基準）アップロード -->
+                    <div class="upload-group">
+                        <label for="file-input-base" class="file-drop-zone drop-zone-base" id="drop-zone-base" role="button" tabindex="0" aria-label="基準データをアップロード">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon-base" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>基準データアップロード</p>
+                        </label>
+                        <input type="file" id="file-input-base" accept=".csv, .xlsx, .xls" style="display: none;" aria-label="基準データファイル選択">
+                        <span id="file-name-base" class="file-pill pill-base hidden">基準: 未読込</span>
+                    </div>
+
+                    <!-- 比較データ（比較対象）アップロード -->
+                    <div class="upload-group">
+                        <label for="file-input-compare" class="file-drop-zone drop-zone-compare" id="drop-zone-compare" role="button" tabindex="0" aria-label="比較データをアップロード">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon-compare" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>比較データアップロード</p>
+                        </label>
+                        <input type="file" id="file-input-compare" accept=".csv, .xlsx, .xls" style="display: none;" aria-label="比較データファイル選択">
+                        <span id="file-name-compare" class="file-pill pill-compare hidden">比較: 未読込</span>
+                    </div>
                 </div>
                 <div class="header-meta" style="display: flex; align-items: center;">
                     {header_meta}
@@ -1381,6 +1514,66 @@ def generate_html_report(
                 }}
             }});
         }});
+
+        // ドラッグ＆ドロップおよびファイルアップロード初期化
+        function setupDropZone(zoneId, inputId, pillId, labelPrefix) {{
+            const dropZone = document.getElementById(zoneId);
+            const fileInput = document.getElementById(inputId);
+            const filePill = document.getElementById(pillId);
+
+            if (!dropZone || !fileInput || !filePill) return;
+
+            dropZone.addEventListener('click', function(e) {{
+                if (e.target !== fileInput) {{
+                    fileInput.click();
+                }}
+            }});
+
+            dropZone.addEventListener('dragover', function(e) {{
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('drag-over');
+            }});
+
+            dropZone.addEventListener('dragleave', function(e) {{
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-over');
+            }});
+
+            dropZone.addEventListener('drop', function(e) {{
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-over');
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {{
+                    const file = e.dataTransfer.files[0];
+                    handleFileSelect(file, filePill, labelPrefix);
+                }}
+            }});
+
+            fileInput.addEventListener('change', function(e) {{
+                if (e.target.files && e.target.files.length > 0) {{
+                    const file = e.target.files[0];
+                    handleFileSelect(file, filePill, labelPrefix);
+                }}
+            }});
+
+            function handleFileSelect(file, pillElement, prefix) {{
+                pillElement.textContent = prefix + ': ' + file.name;
+                pillElement.title = file.name;
+                pillElement.classList.remove('hidden');
+            }}
+
+            dropZone.addEventListener('keydown', function(e) {{
+                if (e.key === 'Enter' || e.key === ' ') {{
+                    e.preventDefault();
+                    fileInput.click();
+                }}
+            }});
+        }}
+
+        setupDropZone('drop-zone-base', 'file-input-base', 'file-name-base', '基準');
+        setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較');
     </script>
 </body>
 </html>"""
