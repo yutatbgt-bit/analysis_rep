@@ -748,16 +748,30 @@ function handleFileUpload(file, type) {
 function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
     var dropZone = document.getElementById(dropZoneId);
     var fileInput = document.getElementById(fileInputId);
-    if (!dropZone || !fileInput) return;
+    if (!dropZone || !fileInput) {
+        console.warn('[setupDropZone] 要素が見つかりません: ' + dropZoneId + ' / ' + fileInputId);
+        return;
+    }
 
+    // クリックでファイル選択ダイアログを開く（label の for 属性に依存しない）
+    dropZone.addEventListener('click', function(e) {
+        // ドロップゾーン内の button クリックは除外
+        if (e.target.closest && e.target.closest('button')) return;
+        fileInput.click();
+    });
+
+    // ファイル選択時の処理
     fileInput.addEventListener('change', function(e) {
         var file = e.target.files && e.target.files[0];
         if (file) {
             updateFilePill(pillId, file.name, prefix);
             handleFileUpload(file, type);
+            // 同じファイルを再選択できるようにリセット
+            e.target.value = '';
         }
     });
 
+    // ドラッグ&ドロップ: 視覚フィードバック
     ['dragenter', 'dragover'].forEach(function(eventName) {
         dropZone.addEventListener(eventName, function(e) {
             e.preventDefault();
@@ -774,6 +788,7 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
         });
     });
 
+    // ドロップ: ファイル処理
     dropZone.addEventListener('drop', function(e) {
         var dt = e.dataTransfer;
         var file = dt && dt.files && dt.files[0];
@@ -783,6 +798,7 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
         }
     });
 
+    // キーボードアクセシビリティ
     dropZone.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -791,5 +807,8 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
     });
 }
 
-setupDropZone('drop-zone-base', 'file-input-base', 'file-name-base', '基準', 'base');
-setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
+// DOM 読み込み完了後にドロップゾーンを初期化（確実に要素が存在する状態で実行）
+document.addEventListener('DOMContentLoaded', function() {
+    setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
+    setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
+});
