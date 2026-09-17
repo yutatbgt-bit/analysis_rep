@@ -1,0 +1,287 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>売上実績＆売れ筋商品比較分析ダッシュボード</title>
+    <meta name="description" content="売上データを日商ベースで比較分析したダッシュボードです。">
+    <!-- Google Fonts: Noto Sans JP & Outfit (For numbers only) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="vendor/chart.umd.min.js"></script>
+    <script src="vendor/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header id="header-main">
+            <div class="header-title-area">
+                <div class="brand-title">
+                    <h1>比較分析ダッシュボード</h1>
+                    <div class="header-meta" style="margin-top: 6px;">全店舗 / 全集計部門</div>
+                </div>
+
+                <!-- コンパクトなアップロードセクション (基準データ・比較日データの2ボタン配置) -->
+                <div class="upload-section">
+                    <!-- 基準データ（比較基準）アップロード -->
+                    <div class="upload-group">
+                        <label for="file-input-base" class="file-drop-zone drop-zone-base" id="drop-zone-base" role="button" tabindex="0" aria-label="基準データをアップロード">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon-base" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>基準データアップロード</p>
+                        </label>
+                        <input type="file" id="file-input-base" accept=".csv, .xlsx, .xls" style="display: none;" aria-label="基準データファイル選択">
+                        <span id="file-name-base" class="file-pill pill-base hidden">基準: 未読込</span>
+                    </div>
+
+                    <!-- 比較データ（比較対象）アップロード -->
+                    <div class="upload-group">
+                        <label for="file-input-compare" class="file-drop-zone drop-zone-compare" id="drop-zone-compare" role="button" tabindex="0" aria-label="比較データをアップロード">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon-compare" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>比較データアップロード</p>
+                        </label>
+                        <input type="file" id="file-input-compare" accept=".csv, .xlsx, .xls" style="display: none;" aria-label="比較データファイル選択">
+                        <span id="file-name-compare" class="file-pill pill-compare hidden">比較: 未読込</span>
+                    </div>
+
+                <div class="header-actions">
+                    <!-- データリセットボタン（アイコンのみ） -->
+                    <button type="button" id="btn-reset-data" class="header-icon-btn btn-reset-data" onclick="resetUploadData()" title="読み込んだデータをリセットして初期状態に戻します" aria-label="データをリセット">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                    <!-- 全画面表示切り替えボタン（アイコンのみ） -->
+                    <button type="button" id="fullscreen-btn" class="header-icon-btn btn-fullscreen-toggle" onclick="toggleFullScreen()" title="全画面表示に切り替えます" aria-label="全画面表示に切り替え" aria-pressed="false">
+                        <span class="fullscreen-icon-container">
+                            <svg class="icon-maximize" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            </svg>
+                            <svg class="icon-minimize" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+                            </svg>
+                        </span>
+                    </button>
+
+                    <!-- テーマ切り替えボタン（ダーク/ライト・アイコンのみ） -->
+                    <button type="button" id="btn-theme-toggle" class="header-icon-btn btn-theme-toggle" onclick="toggleTheme()" title="ライトモードに切り替えます" aria-label="ライトモードに切り替え" aria-pressed="false">
+                        <span class="theme-icon-container">
+                            <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="5"></circle>
+                                <line x1="12" y1="1" x2="12" y2="3"></line>
+                                <line x1="12" y1="21" x2="12" y2="23"></line>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                <line x1="1" y1="12" x2="3" y2="12"></line>
+                                <line x1="21" y1="12" x2="23" y2="12"></line>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                            </svg>
+                            <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要サマリー指標 -->
+        <div class="summary-grid">
+            <!-- 指標1 -->
+            <div class="card" id="card-week-avg">
+                <span class="card-title">比較基準データ</span>
+                <div class="card-value">¥ -</div>
+                <div class="card-subtext">2025年09月02日(火) ～ 2025年09月15日(月)</div>
+            </div>
+
+            <!-- 指標2 -->
+            <div class="card" id="card-day-sales">
+                <span class="card-title">比較対象データ</span>
+                <div class="card-value">¥ -</div>
+                <div class="card-subtext">2026年09月01日(火) ～ 2026年09月14日(月)</div>
+            </div>
+
+            <!-- 指標3 -->
+            <div class="card" id="card-comparison">
+                <span class="card-title">比較基準に対する比率</span>
+                <div class="card-value" style="color: var(--accent-red);">¥ -</div>
+                <div class="card-subtext">差額: -</div>
+            </div>
+        </div>
+
+        <!-- 1. 売上実績の全体対比 分析・解説 -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h3 class="section-title">1. 売上実績の全体対比 (日商ベース)</h3>
+            <div class="commentary-body">
+                <div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+                <div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+            </div>
+        </div>
+
+        <!-- 2. カテゴリ別の売上構成比のシフトセクション -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h3 class="section-title">2. カテゴリ別の売上構成比のシフト (日商ベース)</h3>
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; margin-top: 16px;">
+                <!-- 左：カテゴリテーブル -->
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>カテゴリ</th>
+                                <th style="text-align: right;">比較基準 日商平均</th>
+                                <th style="text-align: right;">比較基準 構成比</th>
+                                <th style="text-align: right;">比較対象 日商</th>
+                                <th style="text-align: right;">日商差分</th>
+                                <th style="text-align: right;">比較対象 構成比</th>
+                                <th style="text-align: right;">構成比差分</th>
+                            </tr>
+                        </thead>
+                        <tbody><tr><td colspan="10" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr></tbody>
+                    </table>
+                </div>
+                <!-- 右：円グラフ -->
+                <div class="chart-container" style="display: flex; align-items: center; justify-content: center;">
+                    <canvas id="categoryPieChart"></canvas>
+                </div>
+            </div>
+
+            <!-- カテゴリ分析のまとめ -->
+            <div class="commentary-block">
+                <div class="commentary-title">カテゴリ分析のまとめ</div>
+                <div class="commentary-body">
+                    <div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+<div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+<div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+<div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- カテゴリ別日商対比棒グラフ -->
+        <div class="chart-card" style="margin-bottom: 40px;">
+            <h3 class="section-title" style="border-bottom: none; margin-bottom: 0;">カテゴリ別日商対比（比較基準・比較対象）</h3>
+            <div class="chart-container" style="margin-top: 20px;">
+                <canvas id="categoryBarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. 日商変動の顕著な商品分析 -->
+        <div style="margin-bottom: 40px;">
+            <h3 class="section-title">3. 日商変動の顕著な商品分析</h3>
+            <div class="grid-2col">
+                <!-- 急上昇 -->
+                <div class="chart-card">
+                    <h4 style="font-size: 14px; font-weight: 700; color: var(--accent-green); margin-bottom: 16px;">
+                        日商増加額の上位10商品
+                    </h4>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">#</th>
+                                    <th>商品名</th>
+                                    <th style="text-align: right;">増加額</th>
+                                    <th style="text-align: right;">推移 (伸長率)</th>
+                                </tr>
+                            </thead>
+                            <tbody><tr><td colspan="10" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 急下落 -->
+                <div class="chart-card">
+                    <h4 style="font-size: 14px; font-weight: 700; color: var(--accent-red); margin-bottom: 16px;">
+                        日商減少額の上位10商品
+                    </h4>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">#</th>
+                                    <th>商品名</th>
+                                    <th style="text-align: right;">減少額</th>
+                                    <th style="text-align: right;">推移 (残存率)</th>
+                                </tr>
+                            </thead>
+                            <tbody><tr><td colspan="10" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 売れ筋ランキング比較テーブル -->
+        <div class="table-card" id="card-rankings">
+            <h3 class="section-title">4. 単品売上実績比較 (Best15 - 日商ベース)</h3>
+
+            <div class="tab-menu" role="tablist">
+                <button class="tab-btn active" onclick="switchTab('week')" role="tab" aria-selected="true" id="tab-btn-week">比較基準データ</button>
+                <button class="tab-btn" onclick="switchTab('day')" role="tab" aria-selected="false" id="tab-btn-day">比較対象データ</button>
+            </div>
+
+            <!-- 比較基準ランキングテーブル -->
+            <div class="table-responsive" id="table-week">
+                <table id="tbl-week">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px; text-align: center;">順位</th>
+                            <th>商品名</th>
+                            <th>商品コード</th>
+                            <th style="text-align: right;">日商</th>
+                            <th style="text-align: right;">構成比</th>
+                            <th>ロス率</th>
+                        </tr>
+                    </thead>
+                    <tbody><tr><td colspan="10" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr></tbody>
+                </table>
+            </div>
+
+            <!-- 比較対象ランキングテーブル -->
+            <div class="table-responsive" id="table-day" style="display: none;">
+                <table id="tbl-day">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px; text-align: center;">順位</th>
+                            <th>商品名</th>
+                            <th>商品コード</th>
+                            <th style="text-align: right;">日商</th>
+                            <th style="text-align: right;">構成比</th>
+                            <th style="width: 100px; text-align: center;">比較基準順位</th>
+                            <th>ロス率</th>
+                        </tr>
+                    </thead>
+                    <tbody><tr><td colspan="10" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr></tbody>
+                </table>
+            </div>
+
+            <!-- ランキング傾向 -->
+            <div class="commentary-block">
+                <div class="commentary-title">日商ベースでのランキング傾向</div>
+                <div class="commentary-body">
+                    <div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+<div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+<div class="commentary-item">データが未読込です。基準データと比較データをアップロードしてください。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- チャートデータの流し込みと制御スクリプト -->
+    <script src="js/parser.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
