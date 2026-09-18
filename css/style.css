@@ -530,3 +530,112 @@
         :root[data-theme="light"] .theme-icon-container .icon-moon {
             display: block;
         }
+
+
+        /* -------------------------------------------------------------
+           テーブル配置・テキストアライメントユーティリティ
+        ------------------------------------------------------------- */
+        .text-right {
+            text-align: right !important;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
+        .text-left {
+            text-align: left !important;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* 全テーブルの数値列の等幅数値指定 */
+        td.text-right, th.text-right {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        td.text-center, th.text-center {
+            text-align: center !important;
+        }
+
+        /* 4. 単品売上実績比較 (Best15) テーブルの固定レイアウトと列幅 */
+        #tbl-week, #tbl-day {
+            table-layout: fixed;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* 各列の明示的幅設定（ヘッダーとデータ行の完全同期） */
+        #tbl-week th.col-rank, #tbl-day th.col-rank {
+            width: 50px;
+            text-align: center !important;
+        }
+
+        #tbl-week th.col-name, #tbl-day th.col-name {
+            width: auto;
+            text-align: left !important;
+        }
+
+        #tbl-week th.col-code, #tbl-day th.col-code {
+            width: 130px;
+            text-align: left !important;
+        }
+
+        #tbl-week th.col-sales, #tbl-day th.col-sales {
+            width: 110px;
+            text-align: right !important;
+        }
+
+        #tbl-week th.col-ratio, #tbl-day th.col-ratio {
+            width: 85px;
+            text-align: right !important;
+        }
+
+        #tbl-day th.col-base-rank {
+            width: 85px;
+            text-align: center !important;
+        }
+
+        #tbl-week th.col-comp, #tbl-day th.col-comp {
+            width: 90px;
+            text-align: right !important;
+        }
+
+        /* データ行のセルスタイル */
+        #tbl-week td.col-rank, #tbl-day td.col-rank {
+            text-align: center !important;
+        }
+
+        #tbl-week td.col-name, #tbl-day td.col-name {
+            text-align: left !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #tbl-week td.col-code, #tbl-day td.col-code {
+            text-align: left !important;
+        }
+
+        #tbl-week td.col-sales, #tbl-day td.col-sales {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #tbl-week td.col-ratio, #tbl-day td.col-ratio {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #tbl-day td.col-base-rank {
+            text-align: center !important;
+        }
+
+        #tbl-week td.col-comp, #tbl-day td.col-comp {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }

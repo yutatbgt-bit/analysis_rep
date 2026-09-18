@@ -756,12 +756,12 @@ function renderTables() {
                     : '-';
 
                 return '<tr>' +
-                    '<td style="text-align:center;">' + (idx+1) + '</td>' +
-                    '<td style="font-weight:500;">' + escHtml(item.name) + '</td>' +
-                    '<td style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
-                    '<td class="text-right">' + dailySalesStr + '</td>' +
-                    '<td class="text-right">' + ratioStr + '</td>' +
-                    '<td class="text-right">' + compRatioStr + '</td>' +
+                    '<td class="col-rank" style="text-align:center;">' + (idx+1) + '</td>' +
+                    '<td class="col-name" style="font-weight:500;" title="' + escHtml(item.name) + '">' + escHtml(item.name) + '</td>' +
+                    '<td class="col-code" style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
+                    '<td class="col-sales text-right" style="text-align:right;">' + dailySalesStr + '</td>' +
+                    '<td class="col-ratio text-right" style="text-align:right;">' + ratioStr + '</td>' +
+                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioStr + '</td>' +
                     '</tr>';
             }).join('')
             : BLANK_MSG_6;
@@ -799,13 +799,13 @@ function renderTables() {
                 }
 
                 return '<tr>' +
-                    '<td style="text-align:center;">' + (idx+1) + '</td>' +
-                    '<td style="font-weight:500;">' + escHtml(item.name) + '</td>' +
-                    '<td style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
-                    '<td class="text-right">' + dailySalesStr + '</td>' +
-                    '<td class="text-right">' + ratioStr + '</td>' +
-                    '<td style="text-align:center;">' + rankDisplay + '</td>' +
-                    '<td class="text-right">' + compRatioStr + '</td>' +
+                    '<td class="col-rank" style="text-align:center;">' + (idx+1) + '</td>' +
+                    '<td class="col-name" style="font-weight:500;" title="' + escHtml(item.name) + '">' + escHtml(item.name) + '</td>' +
+                    '<td class="col-code" style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
+                    '<td class="col-sales text-right" style="text-align:right;">' + dailySalesStr + '</td>' +
+                    '<td class="col-ratio text-right" style="text-align:right;">' + ratioStr + '</td>' +
+                    '<td class="col-base-rank text-center" style="text-align:center;">' + rankDisplay + '</td>' +
+                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioStr + '</td>' +
                     '</tr>';
             }).join('')
             : BLANK_MSG_7;
