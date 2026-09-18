@@ -1,3 +1,84 @@
+
+// ==========================================================================
+// 堅牢なハイブリッド・ストレージマネージャー (IndexedDB + localStorage フォールバック)
+// ==========================================================================
+var StorageManager = (function() {
+    var DB_NAME = 'SalesAnalysisReportDB';
+    var DB_VERSION = 1;
+    var STORE_NAME = 'analysis_store';
+
+    function openDB() {
+        return new Promise(function(resolve, reject) {
+            if (!window.indexedDB) {
+                return reject(new Error('IndexedDB not supported'));
+            }
+            var req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = function(e) {
+                var db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+            req.onsuccess = function(e) { resolve(e.target.result); };
+            req.onerror = function(e) { reject(e.target.error); };
+        });
+    }
+
+    return {
+        get: function(key) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, 'readonly');
+                    var store = tx.objectStore(STORE_NAME);
+                    var req = store.get(key);
+                    req.onsuccess = function() { resolve(req.result); };
+                    req.onerror = function() { reject(req.error); };
+                });
+            }).catch(function() {
+                try {
+                    var raw = localStorage.getItem('sa_rep_' + key);
+                    return raw ? JSON.parse(raw) : null;
+                } catch (e) {
+                    return null;
+                }
+            });
+        },
+        set: function(key, val) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, 'readwrite');
+                    var store = tx.objectStore(STORE_NAME);
+                    var req = store.put(val, key);
+                    req.onsuccess = function() { resolve(); };
+                    req.onerror = function() { reject(req.error); };
+                });
+            }).catch(function() {
+                try {
+                    localStorage.setItem('sa_rep_' + key, JSON.stringify(val));
+                } catch (e) {
+                    console.warn('[StorageManager] localStorage set failed:', e);
+                }
+            });
+        },
+        clearAll: function() {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, 'readwrite');
+                    var store = tx.objectStore(STORE_NAME);
+                    var req = store.clear();
+                    req.onsuccess = function() { resolve(); };
+                    req.onerror = function() { reject(req.error); };
+                });
+            }).catch(function() {
+                try {
+                    localStorage.removeItem('sa_rep_base_data');
+                    localStorage.removeItem('sa_rep_compare_data');
+                } catch (e) {}
+            });
+        }
+    };
+})();
+
 // XSS対策: HTMLエスケープユーティリティ
 function escHtml(str) {
     if (str === null || str === undefined) return '';
@@ -247,6 +328,10 @@ function resetUploadData() {
     uploadedBaseData = null;
     uploadedCompareData = null;
     isDashboardCleared = true;
+
+    // ストレージから永続化データを完全消去
+    StorageManager.clearAll();
+
     showToast('画面上の全グラフ・数値を初期化（未読込表示）しました。', 'success');
 }
 
@@ -1145,11 +1230,21 @@ function handleFileUpload(file, type) {
     }
 
     SalesParser.parseSalesFile(file).then(function(parsedData) {
+        var key = type === 'base' ? 'base_data' : 'compare_data';
+        var payload = {
+            fileName: file.name,
+            data: parsedData,
+            savedAt: Date.now()
+        };
+
         if (type === 'base') {
             uploadedBaseData = parsedData;
         } else {
             uploadedCompareData = parsedData;
         }
+
+        // ストレージへ非同期で永続化保存
+        StorageManager.set(key, payload);
 
         renderDashboard();
         showToast((type === 'base' ? '基準' : '比較') + 'データ（' + parsedData.itemCount + '件）を読み込みました。', 'success');
@@ -1222,4 +1317,40 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
 document.addEventListener('DOMContentLoaded', function() {
     setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
     setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
+    restorePersistedData();
 });
+
+
+// ==========================================================================
+// 起動時の自動復元 (IndexedDB / localStorage から復帰)
+// ==========================================================================
+function restorePersistedData() {
+    Promise.all([
+        StorageManager.get('base_data'),
+        StorageManager.get('compare_data')
+    ]).then(function(results) {
+        var basePayload = results[0];
+        var compPayload = results[1];
+        var restoredAny = false;
+
+        if (basePayload && basePayload.data) {
+            uploadedBaseData = basePayload.data;
+            updateFilePill('file-name-base', basePayload.fileName || '基準データ', '基準');
+            restoredAny = true;
+        }
+
+        if (compPayload && compPayload.data) {
+            uploadedCompareData = compPayload.data;
+            updateFilePill('file-name-compare', compPayload.fileName || '比較データ', '比較');
+            restoredAny = true;
+        }
+
+        if (restoredAny) {
+            isDashboardCleared = false;
+            renderDashboard();
+            showToast('前回保存されたデータを自動復元しました。', 'info');
+        }
+    }).catch(function(err) {
+        console.warn('[restorePersistedData] 復元エラー:', err);
+    });
+}
