@@ -732,19 +732,16 @@ function renderCommentary() {
         var cPeriod = uploadedCompareData.periodStr || '今期';
 
         var c1 = el('commentary-overview-1');
-        if (c1) c1.innerHTML = '<strong>日商の推移:</strong> 比較対象（' + cPeriod + '）の日商 ' + formatYen(cSales) + ' は、比較基準（' + bPeriod + '）の日商 ' + formatYen(bSales) + ' と比べて <strong>約' + Math.abs(pct) + '% ' + (diff >= 0 ? '増加' : '減少') + '</strong> しています。';
+        if (c1) c1.innerHTML = '<strong>日商の推移:</strong> 比較対象（' + escHtml(cPeriod) + '）の日商 ' + formatYen(cSales) + ' は、比較基準（' + escHtml(bPeriod) + '）の日商 ' + formatYen(bSales) + ' と比べて <strong>約' + Math.abs(pct) + '% ' + (diff >= 0 ? '増加' : '減少') + '</strong> しています。';
         var c2 = el('commentary-overview-2');
         if (c2) c2.innerHTML = '';
     } else if (uploadedBaseData || uploadedCompareData) {
         var active = uploadedCompareData || uploadedBaseData;
         var c1 = el('commentary-overview-1');
-        if (c1) c1.innerHTML = '<strong>日商サマリー:</strong> 読み込み済みデータ（' + (active.periodStr || '対象期間') + '）の日商は <strong>' + formatYen(active.totalDailySales) + '</strong> です。もう一方のデータをアップロードすると対比分析が行われます。';
-    }
-}
+        if (c1) c1.innerHTML = '<strong>日商サマリー:</strong> 読み込み済みデータ（' + escHtml(active.periodStr || '対象期間') + '）の日商は <strong>' + formatYen(active.totalDailySales) + '</strong> です。もう一方のデータをアップロードすると対比分析が行われます。';
     }
 }
 
-// ==========================================================================
 // ==========================================================================
 // インライン ondrop ハンドラ（HTML属性から直接呼び出し）
 // 引数を type のみにしてHTML属性内の日本語文字列を排除
@@ -762,7 +759,6 @@ function handleInlineDrop(event, type) {
     updateFilePill(pillId, file.name, prefix);
     handleFileUpload(file, type);
 }
-
 
 function handleFileUpload(file, type) {
     if (!file) return;
@@ -847,8 +843,6 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
 }
 
 // DOMContentLoaded でドロップゾーンを初期化
-// （<label for> のブラウザ標準動作と組み合わせることで
-//   クリックとドラッグ&ドロップの両方を確実に動作させる）
 document.addEventListener('DOMContentLoaded', function() {
     setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
     setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
