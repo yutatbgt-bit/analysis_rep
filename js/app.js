@@ -316,8 +316,11 @@ function resetUploadData() {
 
 
 
-        // スクリプトは </body> 直前のため DOM は確実に存在する
-        initBlankCharts();
+        // DOMContentLoaded: 初期ブランク表示（参照実装と同一パターン）
+        document.addEventListener('DOMContentLoaded', function() {
+            initBlankCharts();
+        });
+
 
 
 
@@ -745,70 +748,69 @@ function handleFileUpload(file, type) {
     });
 }
 
+// ==========================================================================
+// ドロップゾーン初期化（参照実装と同一ロジック）
+// ==========================================================================
 function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
     var dropZone = document.getElementById(dropZoneId);
     var fileInput = document.getElementById(fileInputId);
-    if (!dropZone || !fileInput) {
-        console.warn('[setupDropZone] 要素が見つかりません: ' + dropZoneId + ' / ' + fileInputId);
-        return;
+
+    // ファイル選択（input[change]）
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            var file = e.target.files && e.target.files[0];
+            if (file) {
+                updateFilePill(pillId, file.name, prefix);
+                handleFileUpload(file, type);
+                fileInput.value = ''; // 同じファイルを再選択可能に
+            }
+        });
     }
 
-    // クリックでファイル選択ダイアログを開く（label の for 属性に依存しない）
-    dropZone.addEventListener('click', function(e) {
-        // ドロップゾーン内の button クリックは除外
-        if (e.target.closest && e.target.closest('button')) return;
-        fileInput.click();
-    });
-
-    // ファイル選択時の処理
-    fileInput.addEventListener('change', function(e) {
-        var file = e.target.files && e.target.files[0];
-        if (file) {
-            updateFilePill(pillId, file.name, prefix);
-            handleFileUpload(file, type);
-            // 同じファイルを再選択できるようにリセット
-            e.target.value = '';
-        }
-    });
-
-    // ドラッグ&ドロップ: 視覚フィードバック
-    ['dragenter', 'dragover'].forEach(function(eventName) {
-        dropZone.addEventListener(eventName, function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.add('drag-over');
+    // ドラッグ&ドロップ
+    if (dropZone) {
+        // dragenter / dragover: ドロップ許可（preventDefault 必須）
+        ['dragenter', 'dragover'].forEach(function(eventName) {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('drag-over');
+            });
         });
-    });
 
-    ['dragleave', 'drop'].forEach(function(eventName) {
-        dropZone.addEventListener(eventName, function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.remove('drag-over');
+        // dragleave / drop: ハイライト解除
+        ['dragleave', 'drop'].forEach(function(eventName) {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-over');
+            });
         });
-    });
 
-    // ドロップ: ファイル処理
-    dropZone.addEventListener('drop', function(e) {
-        var dt = e.dataTransfer;
-        var file = dt && dt.files && dt.files[0];
-        if (file) {
-            updateFilePill(pillId, file.name, prefix);
-            handleFileUpload(file, type);
-        }
-    });
+        // drop: ファイル取得・処理
+        dropZone.addEventListener('drop', function(e) {
+            var dt = e.dataTransfer;
+            var file = dt && dt.files && dt.files[0];
+            if (file) {
+                updateFilePill(pillId, file.name, prefix);
+                handleFileUpload(file, type);
+            }
+        });
 
-    // キーボードアクセシビリティ
-    dropZone.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            fileInput.click();
-        }
-    });
+        // キーボードアクセシビリティ（Enter / Space でダイアログ起動）
+        dropZone.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (fileInput) fileInput.click();
+            }
+        });
+    }
 }
 
-
-// ドロップゾーンをページ読み込み時点で即時初期化
-// (スクリプトは </body> 直前に配置されているため DOM は確実に存在する)
-setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
-setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
+// DOMContentLoaded でドロップゾーンを初期化
+// （<label for> のブラウザ標準動作と組み合わせることで
+//   クリックとドラッグ&ドロップの両方を確実に動作させる）
+document.addEventListener('DOMContentLoaded', function() {
+    setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
+    setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
+});

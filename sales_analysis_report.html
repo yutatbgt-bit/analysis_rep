@@ -27,28 +27,28 @@
             <div class="upload-section">
                 <!-- 基準データ -->
                 <div class="upload-group">
-                    <div class="file-drop-zone drop-zone-base" id="drop-zone-base" role="button" tabindex="0" aria-label="基準データをアップロード" onclick="document.getElementById('file-input-base').click()">
+                    <label for="file-input-base" class="file-drop-zone drop-zone-base" id="drop-zone-base" role="button" tabindex="0" aria-label="基準データをアップロード">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-base" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
                         <p>基準データアップロード</p>
-                    </div>
+                    </label>
                     <input type="file" id="file-input-base" accept=".csv, .xlsx, .xls" style="display: none;" aria-label="基準データファイル選択">
                     <span id="file-name-base" class="file-pill pill-base hidden">基準: 未読込</span>
                 </div>
 
                 <!-- 比較データ -->
                 <div class="upload-group">
-                    <div class="file-drop-zone drop-zone-compare" id="drop-zone-compare" role="button" tabindex="0" aria-label="比較データをアップロード" onclick="document.getElementById('file-input-compare').click()">
+                    <label for="file-input-compare" class="file-drop-zone drop-zone-compare" id="drop-zone-compare" role="button" tabindex="0" aria-label="比較データをアップロード">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-compare" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
                         <p>比較データアップロード</p>
-                    </div>
+                    </label>
                     <input type="file" id="file-input-compare" accept=".csv, .xlsx, .xls" style="display: none;" aria-label="比較データファイル選択">
                     <span id="file-name-compare" class="file-pill pill-compare hidden">比較: 未読込</span>
                 </div>
