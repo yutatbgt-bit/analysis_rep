@@ -27,8 +27,23 @@
     }
 
     /**
-     * 商品名からの高精度カテゴリ推定
+     * 比率・パーセント値のクリーニングと正規化（小数表記 1.125 -> 112.5% のケア）
      */
+    function parseRatio(val) {
+        if (val === undefined || val === null || val === '') return null;
+        var str = String(val).trim();
+        if (!str || str === '-') return null;
+        var hasPercent = str.indexOf('%') !== -1 || str.indexOf('％') !== -1;
+        var num = parseNumeric(str);
+        if (isNaN(num)) return null;
+        if (hasPercent) return num;
+        // 小数表記（例: 0.042 -> 4.2%, 1.125 -> 112.5%）の自動変換
+        if (num > 0 && num <= 2.5) {
+            return parseFloat((num * 100).toFixed(2));
+        }
+        return num;
+    }
+
     /**
      * 商品のカテゴリー分類（設定ファイル config.md.xlsx 完全準拠）
      * category_map.js の classifyProduct を使用
@@ -75,12 +90,12 @@
             }
         }
 
-        // 2. ヘッダー行の検出 (「商品名」または「コード」が含まれる行)
+        // 2. ヘッダー行の検出 (「商品名」「コード」を含む行の探索)
         for (var r = 0; r < Math.min(rows.length, 15); r++) {
             var row = rows[r] || [];
             for (var c = 0; c < row.length; c++) {
                 var cell = toHalfWidth(String(row[c] || ''));
-                if (cell.indexOf('商品名') !== -1 || cell.indexOf('品名') !== -1) {
+                if (cell.indexOf('商品名') !== -1 || cell.indexOf('品名') !== -1 || cell.indexOf('商品コード') !== -1) {
                     headerRowIndex = r;
                     break;
                 }
@@ -90,32 +105,91 @@
 
         if (headerRowIndex === -1) headerRowIndex = 6; // デフォルト6行目
 
-        // ヘッダー列インデックスのマッピング
-        var headerRow = rows[headerRowIndex] || [];
-        for (var c = 0; c < headerRow.length; c++) {
-            var h = toHalfWidth(String(headerRow[c] || ''));
-            if (h.indexOf('コード') !== -1) colMap.code = c;
-            else if (h.indexOf('品名') !== -1 || h.indexOf('商品名') !== -1) colMap.name = c;
-            else if (h.indexOf('部門') !== -1 || h.indexOf('カテゴリ') !== -1 || h.indexOf('大分類') !== -1 || h.indexOf('分類') !== -1) colMap.category = c;
-            else if (h.indexOf('日商') !== -1 || (h.indexOf('売上') !== -1 && h.indexOf('日') !== -1)) colMap.dailySales = c;
-            else if (h.indexOf('売上') !== -1 && h.indexOf('累計') !== -1) colMap.totalSales = c;
-            else if (h.indexOf('構成比') !== -1) colMap.ratio = c;
-            else if (h.indexOf('予算比') !== -1) colMap.budgetRatio = c;
-            else if (h.indexOf('前年比') !== -1 || h.indexOf('対比') !== -1) colMap.compRatio = c;
-            else if (h.indexOf('点数') !== -1 || h.indexOf('客数') !== -1) colMap.hits = c;
-            else if (h.indexOf('単価') !== -1) colMap.unitPrice = c;
+        // 複合ヘッダー（2段組見出し）の考慮
+        var rowMain = rows[headerRowIndex] || [];
+        var rowSub = (headerRowIndex + 1 < rows.length) ? rows[headerRowIndex + 1] : [];
+        var isSubHeader = false;
+        if (rowSub.length > 0) {
+            var subJoined = rowSub.join(' ');
+            if (subJoined.indexOf('日商') !== -1 || subJoined.indexOf('比較日比') !== -1 || subJoined.indexOf('構成比') !== -1) {
+                isSubHeader = true;
+            }
         }
 
+        var maxCols = Math.max(rowMain.length, rowSub.length);
+        for (var c = 0; c < maxCols; c++) {
+            var hMain = toHalfWidth(String(rowMain[c] || '')).replace(/\s+/g, '');
+            var hSub  = isSubHeader ? toHalfWidth(String(rowSub[c] || '')).replace(/\s+/g, '') : '';
+            var hCombined = hMain + '_' + hSub;
+
+            // 商品コード
+            if (hMain.indexOf('コード') !== -1 || hSub.indexOf('コード') !== -1 || hMain.indexOf('品番') !== -1) {
+                colMap.code = c;
+            }
+            // 商品名
+            else if (hMain.indexOf('品名') !== -1 || hMain.indexOf('商品名') !== -1 || hSub.indexOf('品名') !== -1) {
+                colMap.name = c;
+            }
+            // 部門・カテゴリー
+            else if (hMain.indexOf('部門') !== -1 || hMain.indexOf('カテゴリ') !== -1 || hMain.indexOf('大分類') !== -1 || hMain.indexOf('分類') !== -1) {
+                colMap.category = c;
+            }
+            // 比較日比 / 前年比 / 対比（売上高の比較日比を最優先）
+            else if (hCombined.indexOf('比較日比') !== -1 || hSub.indexOf('比較日比') !== -1 || hMain.indexOf('比較日比') !== -1 || hCombined.indexOf('比較日') !== -1) {
+                if (colMap.compRatio === undefined || hCombined.indexOf('売上') !== -1) {
+                    colMap.compRatio = c;
+                }
+            }
+            else if ((hCombined.indexOf('売上') !== -1 && (hCombined.indexOf('前年比') !== -1 || hCombined.indexOf('対比') !== -1)) ||
+                     (colMap.compRatio === undefined && (hCombined.indexOf('前年比') !== -1 || hCombined.indexOf('対比') !== -1))) {
+                colMap.compRatio = c;
+            }
+            // 売上日商
+            else if (hCombined.indexOf('日商') !== -1 || (hCombined.indexOf('売上') !== -1 && hCombined.indexOf('日') !== -1)) {
+                if (colMap.dailySales === undefined || hCombined.indexOf('売上') !== -1) {
+                    colMap.dailySales = c;
+                }
+            }
+            // 売上累計 / 売上高実績
+            else if (hCombined.indexOf('売上') !== -1 && (hCombined.indexOf('累計') !== -1 || hCombined.indexOf('実績') !== -1)) {
+                colMap.totalSales = c;
+            }
+            // 構成比
+            else if (hCombined.indexOf('構成比') !== -1 || hCombined.indexOf('売上比') !== -1) {
+                if (colMap.ratio === undefined || hCombined.indexOf('売上') !== -1) {
+                    colMap.ratio = c;
+                }
+            }
+            // 予算比
+            else if (hCombined.indexOf('予算比') !== -1) {
+                colMap.budgetRatio = c;
+            }
+            // 点数・客数
+            else if (hCombined.indexOf('点数') !== -1 || hCombined.indexOf('客数') !== -1 || hCombined.indexOf('打数') !== -1) {
+                colMap.hits = c;
+            }
+            // 単価
+            else if (hCombined.indexOf('単価') !== -1) {
+                colMap.unitPrice = c;
+            }
+        }
+
+        // デフォルト列インデックス（POS標準帳票・d3968cd_analyzer.py 準拠）
         if (colMap.code === undefined) colMap.code = 0;
         if (colMap.name === undefined) colMap.name = 1;
         if (colMap.dailySales === undefined) colMap.dailySales = 2;
         if (colMap.totalSales === undefined) colMap.totalSales = 3;
+        if (colMap.ratio === undefined) colMap.ratio = 4;
+        if (colMap.budgetRatio === undefined) colMap.budgetRatio = 5;
+        if (colMap.compRatio === undefined) colMap.compRatio = 6;
+
+        var startDataRow = isSubHeader ? (headerRowIndex + 2) : (headerRowIndex + 1);
 
         // 3. データ行の走査・合計行の抽出・Top商品リスト
         var items = [];
         var categoryMap = {};
 
-        for (var r = headerRowIndex + 1; r < rows.length; r++) {
+        for (var r = startDataRow; r < rows.length; r++) {
             var row = rows[r];
             if (!row || row.length === 0) continue;
 
@@ -129,13 +203,18 @@
                 continue;
             }
 
-            if (!nameCell || nameCell === '0' || nameCell.indexOf('商品コード') !== -1) continue;
+            if (!nameCell || nameCell === '0' || nameCell.indexOf('商品コード') !== -1 || nameCell.indexOf('品名') !== -1) continue;
 
             var dailySales = parseNumeric(row[colMap.dailySales]);
             var periodSales = parseNumeric(row[colMap.totalSales]) || dailySales;
-            var ratio = parseNumeric(row[colMap.ratio]);
-            var compRatio = parseNumeric(row[colMap.compRatio]);
-            var budgetRatio = parseNumeric(row[colMap.budgetRatio]);
+            // POS CSVで列3が売上高の場合の補完
+            if (dailySales === 0 && periodSales > 0 && colMap.dailySales === 2) {
+                dailySales = periodSales;
+            }
+
+            var ratio = parseRatio(row[colMap.ratio]);
+            var compRatio = parseRatio(row[colMap.compRatio]);
+            var budgetRatio = parseRatio(row[colMap.budgetRatio]);
             var hits = parseNumeric(row[colMap.hits]);
             var unitPrice = parseNumeric(row[colMap.unitPrice]);
 
@@ -157,6 +236,40 @@
                 });
             }
         }
+
+        if (totalDailySales === 0 && items.length > 0) {
+            var sum = 0;
+            items.forEach(function(it) { sum += it.dailySales; });
+            totalDailySales = sum;
+        }
+
+        // 構成比の自動算出補完（CSV内に構成比がなかった場合のケア）
+        if (totalDailySales > 0) {
+            items.forEach(function(it) {
+                if (it.ratio === null || it.ratio === undefined || isNaN(it.ratio)) {
+                    it.ratio = parseFloat((it.dailySales / totalDailySales * 100).toFixed(2));
+                }
+            });
+        }
+
+        // カテゴリ別集計（config.md.xlsx 完全準拠）
+        items.forEach(function(item) {
+            var cat = item.category || 'その他';
+            if (!categoryMap[cat]) {
+                categoryMap[cat] = 0;
+            }
+            categoryMap[cat] += item.dailySales;
+        });
+
+        var categories = [];
+        for (var catName in categoryMap) {
+            categories.push({
+                name: catName,
+                sales: categoryMap[catName],
+                ratio: totalDailySales > 0 ? (categoryMap[catName] / totalDailySales * 100) : 0
+            });
+        }
+        categories.sort(function(a, b) { return b.sales - a.sales; });
 
         items.sort(function(a, b) {
             return b.dailySales - a.dailySales;

@@ -739,43 +739,73 @@ function renderTables() {
         if (fallingBody) fallingBody.innerHTML = BLANK_MSG_6;
     }
 
-    // 3. 単品ランキングテーブル Best15
+    // 3. 単品ランキングテーブル Best15 (日商ベース)
+    // 比較基準テーブル (6列: 順位 / 商品名 / 商品コード / 日商 / 構成比 / 前年比)
     var weekBody = document.getElementById('tbody-week');
     if (weekBody) {
         var weekData = uploadedBaseData;
         weekBody.innerHTML = (weekData && weekData.topItems && weekData.topItems.length > 0)
             ? weekData.topItems.slice(0, 15).map(function(item, idx) {
+                var dailySalesStr = formatYen(item.dailySales);
+                var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
+                    ? item.ratio
+                    : (weekData.totalDailySales > 0 ? (item.dailySales / weekData.totalDailySales * 100) : null);
+                var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+                var compRatioStr = (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio))
+                    ? item.compRatio.toFixed(1) + '%'
+                    : '-';
+
                 return '<tr>' +
                     '<td style="text-align:center;">' + (idx+1) + '</td>' +
                     '<td style="font-weight:500;">' + escHtml(item.name) + '</td>' +
                     '<td style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
-                    '<td class="text-right">' + formatYen(item.dailySales) + '</td>' +
-                    '<td class="text-right">' + (item.ratio ? item.ratio.toFixed(2) + '%' : '-') + '</td>' +
-                    '<td class="text-right">' + (item.compRatio ? item.compRatio.toFixed(1) + '%' : '-') + '</td>' +
+                    '<td class="text-right">' + dailySalesStr + '</td>' +
+                    '<td class="text-right">' + ratioStr + '</td>' +
+                    '<td class="text-right">' + compRatioStr + '</td>' +
                     '</tr>';
             }).join('')
             : BLANK_MSG_6;
     }
 
+    // 比較対象テーブル (7列: 順位 / 商品名 / 商品コード / 日商 / 構成比 / 基準順位 / 前年比)
     var dayBody = document.getElementById('tbody-day');
     if (dayBody) {
         var dayData = uploadedCompareData;
         var baseRankMap = {};
+        var baseSalesMap = {};
         if (uploadedBaseData && uploadedBaseData.topItems) {
-            uploadedBaseData.topItems.forEach(function(it, i) { baseRankMap[it.name] = i + 1; });
+            uploadedBaseData.topItems.forEach(function(it, i) {
+                baseRankMap[it.name] = i + 1;
+                baseSalesMap[it.name] = it.dailySales;
+            });
         }
         dayBody.innerHTML = (dayData && dayData.topItems && dayData.topItems.length > 0)
             ? dayData.topItems.slice(0, 15).map(function(item, idx) {
                 var baseRank = baseRankMap[item.name];
                 var rankDisplay = baseRank ? baseRank + '位' : '圏外';
+                var dailySalesStr = formatYen(item.dailySales);
+
+                var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
+                    ? item.ratio
+                    : (dayData.totalDailySales > 0 ? (item.dailySales / dayData.totalDailySales * 100) : null);
+                var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+
+                // 前年比（売上高の比較日比）: CSVの値があればそれ、なければ基準データとの対比率を算出
+                var compRatioStr = '-';
+                if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+                    compRatioStr = item.compRatio.toFixed(1) + '%';
+                } else if (baseSalesMap[item.name] && baseSalesMap[item.name] > 0) {
+                    compRatioStr = (item.dailySales / baseSalesMap[item.name] * 100).toFixed(1) + '%';
+                }
+
                 return '<tr>' +
                     '<td style="text-align:center;">' + (idx+1) + '</td>' +
                     '<td style="font-weight:500;">' + escHtml(item.name) + '</td>' +
                     '<td style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
-                    '<td class="text-right">' + formatYen(item.dailySales) + '</td>' +
-                    '<td class="text-right">' + (item.ratio ? item.ratio.toFixed(2) + '%' : '-') + '</td>' +
+                    '<td class="text-right">' + dailySalesStr + '</td>' +
+                    '<td class="text-right">' + ratioStr + '</td>' +
                     '<td style="text-align:center;">' + rankDisplay + '</td>' +
-                    '<td class="text-right">' + (item.compRatio ? item.compRatio.toFixed(1) + '%' : '-') + '</td>' +
+                    '<td class="text-right">' + compRatioStr + '</td>' +
                     '</tr>';
             }).join('')
             : BLANK_MSG_7;
