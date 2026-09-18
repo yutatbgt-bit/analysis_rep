@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 売上データ解析パーサーモジュール (parser.js)
  * 単品別売上実績CSV/Excel および 日別集計表に対応
  */
@@ -306,7 +306,8 @@
             totalDailySales: totalDailySales,
             totalPeriodSales: totalPeriodSales,
             itemCount: items.length,
-            topItems: items.slice(0, 15),
+                        topItems: items.slice(0, 50),
+            allItems: items,
             categories: categories
         };
     }

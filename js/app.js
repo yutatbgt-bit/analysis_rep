@@ -899,32 +899,38 @@ function renderTables() {
         if (fallingBody) fallingBody.innerHTML = BLANK_MSG_6;
     }
 
-    // 3. 単品ランキングテーブル Best15 (日商ベース)
+    // 3. 単品ランキングテーブル Best50 (日商ベース)
     // 基準データおよび比較対象データの商品順位・日商マップを作成
-    var baseRankMap = {};
-    var baseSalesMap = {};
-    if (uploadedBaseData && uploadedBaseData.topItems) {
-        uploadedBaseData.topItems.forEach(function(it, i) {
-            baseRankMap[it.name] = i + 1;
-            baseSalesMap[it.name] = it.dailySales;
-        });
-    }
+          var baseRankMap = {};
+      var baseSalesMap = {};
+      if (uploadedBaseData) {
+          var bItems = uploadedBaseData.allItems || uploadedBaseData.topItems;
+          if (bItems) {
+              bItems.forEach(function(it, i) {
+                  baseRankMap[it.name] = i + 1;
+                  baseSalesMap[it.name] = it.dailySales;
+              });
+          }
+      }
 
-    var compareRankMap = {};
-    var compareSalesMap = {};
-    if (uploadedCompareData && uploadedCompareData.topItems) {
-        uploadedCompareData.topItems.forEach(function(it, i) {
-            compareRankMap[it.name] = i + 1;
-            compareSalesMap[it.name] = it.dailySales;
-        });
-    }
+      var compareRankMap = {};
+      var compareSalesMap = {};
+      if (uploadedCompareData) {
+          var cItems = uploadedCompareData.allItems || uploadedCompareData.topItems;
+          if (cItems) {
+              cItems.forEach(function(it, i) {
+                  compareRankMap[it.name] = i + 1;
+                  compareSalesMap[it.name] = it.dailySales;
+              });
+          }
+      }
 
     // 比較基準テーブル (9列: 順位/商品名/商品コード/日商/構成比/比較順位/順位変動/日商差分/前年比)
     var weekBody = document.getElementById('tbody-week');
     if (weekBody) {
         var weekData = uploadedBaseData;
         weekBody.innerHTML = (weekData && weekData.topItems && weekData.topItems.length > 0)
-            ? weekData.topItems.slice(0, 15).map(function(item, idx) {
+            ? weekData.topItems.slice(0, 50).map(function(item, idx) {
                 var currentRank = idx + 1;
                 var dailySalesStr = formatYen(item.dailySales);
                 var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
@@ -962,10 +968,10 @@ function renderTables() {
     if (dayBody) {
         var dayData = uploadedCompareData;
         dayBody.innerHTML = (dayData && dayData.topItems && dayData.topItems.length > 0)
-            ? dayData.topItems.slice(0, 15).map(function(item, idx) {
+            ? dayData.topItems.slice(0, 50).map(function(item, idx) {
                 var currentRank = idx + 1;
                 var baseRank = baseRankMap[item.name];
-                var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '圏外') : '-';
+                var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '-') : '-';
                 var rankDiffHtml = uploadedBaseData ? formatRankDiff(baseRank, currentRank) : '-';
 
                 var dailySalesStr = formatYen(item.dailySales);
