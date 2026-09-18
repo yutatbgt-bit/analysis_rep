@@ -131,19 +131,22 @@
             <!-- 左：カテゴリテーブル -->
             <div class="table-responsive">
                 <table id="table-category">
-                    <thead>
-                        <tr>
-                            <th>カテゴリ</th>
-                            <th style="text-align: right;">基準 日商</th>
-                            <th style="text-align: right;">比較対象 日商</th>
-                            <th style="text-align: right;">構成比</th>
-                            <th style="text-align: right;">対比 %</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-category">
-                        <tr><td colspan="5" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>
-                    </tbody>
-                </table>
+                      <thead>
+                          <tr>
+                              <th class="col-cat-name">カテゴリ</th>
+                              <th class="col-cat-sales text-right">基準 日商</th>
+                              <th class="col-cat-ratio text-right">基準 構成比</th>
+                              <th class="col-cat-sales text-right">比較対象 日商</th>
+                              <th class="col-cat-diff text-right">日商差分</th>
+                              <th class="col-cat-ratio text-right">比較対象 構成比</th>
+                              <th class="col-cat-diff text-right">構成比差分</th>
+                              <th class="col-cat-ratio text-right">対比 %</th>
+                          </tr>
+                      </thead>
+                      <tbody id="tbody-category">
+                          <tr><td colspan="8" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>
+                      </tbody>
+                  </table>
             </div>
             <!-- 右：円グラフ -->
             <div class="chart-container" style="display: flex; align-items: center; justify-content: center;">
@@ -240,11 +243,14 @@
                         <th class="col-code">商品コード</th>
                         <th class="col-sales text-right">日商</th>
                         <th class="col-ratio text-right">構成比</th>
+                        <th class="col-other-rank text-center">比較順位</th>
+                        <th class="col-rank-diff text-center">順位変動</th>
+                        <th class="col-sales-diff text-right">日商差分</th>
                         <th class="col-comp text-right">前年比</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-week">
-                    <tr><td colspan="6" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>
+                    <tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>
                 </tbody>
             </table>
         </div>
@@ -259,12 +265,14 @@
                         <th class="col-code">商品コード</th>
                         <th class="col-sales text-right">日商</th>
                         <th class="col-ratio text-right">構成比</th>
-                        <th class="col-base-rank text-center">基準順位</th>
+                        <th class="col-other-rank text-center">基準順位</th>
+                        <th class="col-rank-diff text-center">順位変動</th>
+                        <th class="col-sales-diff text-right">日商差分</th>
                         <th class="col-comp text-right">前年比</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-day">
-                    <tr><td colspan="7" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>
+                    <tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>
                 </tbody>
             </table>
         </div>

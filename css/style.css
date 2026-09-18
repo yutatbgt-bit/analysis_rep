@@ -562,6 +562,63 @@
             text-align: center !important;
         }
 
+        /* ＋／－ 差分色分けユーティリティ */
+        .diff-plus, .badge-up {
+            color: var(--accent-green) !important;
+            font-weight: 600;
+        }
+
+        .diff-minus, .badge-down {
+            color: var(--accent-red) !important;
+            font-weight: 600;
+        }
+
+        .diff-zero {
+            color: var(--text-muted) !important;
+        }
+
+        .diff-new {
+            color: var(--accent-green) !important;
+            font-weight: 700;
+            background: rgba(74, 222, 128, 0.12);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* 2. カテゴリー別売上構成テーブル */
+        #table-category {
+            table-layout: auto;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #table-category th.col-cat-name, #table-category td.col-cat-name {
+            text-align: left !important;
+            font-weight: 600;
+        }
+
+        #table-category th.col-cat-sales, #table-category td.col-cat-sales {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #table-category th.col-cat-ratio, #table-category td.col-cat-ratio {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #table-category th.col-cat-diff, #table-category td.col-cat-diff {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        #table-category th, #table-category td {
+            white-space: nowrap;
+        }
+
         /* 4. 単品売上実績比較 (Best15) テーブルの固定レイアウトと列幅 */
         #tbl-week, #tbl-day {
             table-layout: fixed;
@@ -569,9 +626,9 @@
             border-collapse: collapse;
         }
 
-        /* 各列の明示的幅設定（ヘッダーとデータ行の完全同期） */
+        /* 各列の明示的幅設定（ヘッダーとデータ行の完全同期・両タブ共通） */
         #tbl-week th.col-rank, #tbl-day th.col-rank {
-            width: 50px;
+            width: 48px;
             text-align: center !important;
         }
 
@@ -581,27 +638,37 @@
         }
 
         #tbl-week th.col-code, #tbl-day th.col-code {
-            width: 130px;
+            width: 115px;
             text-align: left !important;
         }
 
         #tbl-week th.col-sales, #tbl-day th.col-sales {
-            width: 110px;
+            width: 95px;
             text-align: right !important;
         }
 
         #tbl-week th.col-ratio, #tbl-day th.col-ratio {
-            width: 85px;
+            width: 70px;
             text-align: right !important;
         }
 
-        #tbl-day th.col-base-rank {
-            width: 85px;
+        #tbl-week th.col-other-rank, #tbl-day th.col-other-rank {
+            width: 75px;
             text-align: center !important;
         }
 
+        #tbl-week th.col-rank-diff, #tbl-day th.col-rank-diff {
+            width: 75px;
+            text-align: center !important;
+        }
+
+        #tbl-week th.col-sales-diff, #tbl-day th.col-sales-diff {
+            width: 100px;
+            text-align: right !important;
+        }
+
         #tbl-week th.col-comp, #tbl-day th.col-comp {
-            width: 90px;
+            width: 75px;
             text-align: right !important;
         }
 
@@ -631,8 +698,20 @@
             font-variant-numeric: tabular-nums;
         }
 
-        #tbl-day td.col-base-rank {
+        #tbl-week td.col-other-rank, #tbl-day td.col-other-rank {
             text-align: center !important;
+        }
+
+        #tbl-week td.col-rank-diff, #tbl-day td.col-rank-diff {
+            text-align: center !important;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        #tbl-week td.col-sales-diff, #tbl-day td.col-sales-diff {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
         }
 
         #tbl-week td.col-comp, #tbl-day td.col-comp {

@@ -1,3 +1,66 @@
+// XSS対策: HTMLエスケープユーティリティ
+function escHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+
+// 数値・差分色分けフォーマットユーティリティ
+function formatDiffYen(diff) {
+    if (diff === null || diff === undefined || isNaN(diff)) return '-';
+    var rounded = Math.round(diff);
+    if (rounded > 0) {
+        return '<span class="diff-plus">+¥' + rounded.toLocaleString() + '</span>';
+    } else if (rounded < 0) {
+        return '<span class="diff-minus">-¥' + Math.abs(rounded).toLocaleString() + '</span>';
+    } else {
+        return '<span class="diff-zero">±¥0</span>';
+    }
+}
+
+function formatDiffRatio(diff) {
+    if (diff === null || diff === undefined || isNaN(diff)) return '-';
+    if (diff > 0.001) {
+        return '<span class="diff-plus">+' + diff.toFixed(2) + '%</span>';
+    } else if (diff < -0.001) {
+        return '<span class="diff-minus">' + diff.toFixed(2) + '%</span>';
+    } else {
+        return '<span class="diff-zero">±0.00%</span>';
+    }
+}
+
+function formatRankDiff(fromRank, toRank) {
+    if (!fromRank) {
+        return '<span class="diff-new">New</span>';
+    }
+    if (!toRank) {
+        return '<span class="diff-minus">圏外 ↓</span>';
+    }
+    var diff = fromRank - toRank; // 例: 3位から1位なら +2
+    if (diff > 0) {
+        return '<span class="diff-plus">+' + diff + ' ↑</span>';
+    } else if (diff < 0) {
+        return '<span class="diff-minus">' + diff + ' ↓</span>';
+    } else {
+        return '<span class="diff-zero">±0</span>';
+    }
+}
+
+function formatCompRatio(val) {
+    if (val === null || val === undefined || isNaN(val)) return '-';
+    var str = val.toFixed(1) + '%';
+    if (val >= 100.0) {
+        return '<span class="diff-plus">' + str + '</span>';
+    } else {
+        return '<span class="diff-minus">' + str + '</span>';
+    }
+}
+
 ﻿// ==========================================================================
 // ウィンドウレベルのドラッグ&ドロップ制御
 // Edge/Chrome では http:// ページへのファイルドロップ時、
@@ -657,31 +720,43 @@ function renderCharts() {
 }
 
 function renderTables() {
-    var BLANK_MSG_5 = '<tr><td colspan="5" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
-    var BLANK_MSG_6 = '<tr><td colspan="6" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
-    var BLANK_MSG_7 = '<tr><td colspan="7" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
+    var BLANK_MSG_8 = '<tr><td colspan="8" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
+    var BLANK_MSG_9 = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
 
-    // 1. カテゴリ別売上テーブル (5列: カテゴリ/基準 日商/比較対象 日商/構成比/対比 %)
+    // 1. カテゴリ別売上テーブル (8列: カテゴリ/基準 日商/基準 構成比/比較対象 日商/日商差分/比較対象 構成比/構成比差分/対比 %)
     var catBody = document.getElementById('tbody-category');
     if (catBody) {
         var integratedCats = getIntegratedCategories();
         if (integratedCats.length > 0) {
             catBody.innerHTML = integratedCats.slice(0, 15).map(function(item) {
                 var bDisplay = uploadedBaseData ? formatYen(item.bSales) : '-';
+                var bRatioDisplay = uploadedBaseData ? item.bRatio.toFixed(2) + '%' : '-';
                 var cDisplay = uploadedCompareData ? formatYen(item.cSales) : '-';
-                var activeRatio = uploadedCompareData ? item.cRatio : item.bRatio;
-                var compRatioStr = item.compRatio !== null ? item.compRatio.toFixed(1) + '%' : '-';
+                var cRatioDisplay = uploadedCompareData ? item.cRatio.toFixed(2) + '%' : '-';
+
+                var salesDiffHtml = (uploadedBaseData && uploadedCompareData)
+                    ? formatDiffYen(item.cSales - item.bSales)
+                    : '-';
+                var ratioDiffHtml = (uploadedBaseData && uploadedCompareData)
+                    ? formatDiffRatio(item.cRatio - item.bRatio)
+                    : '-';
+                var compRatioHtml = (uploadedBaseData && uploadedCompareData && item.compRatio !== null)
+                    ? formatCompRatio(item.compRatio)
+                    : '-';
 
                 return '<tr>' +
-                    '<td style="font-weight:500;">' + escHtml(item.name) + '</td>' +
-                    '<td class="text-right">' + bDisplay + '</td>' +
-                    '<td class="text-right">' + cDisplay + '</td>' +
-                    '<td class="text-right">' + activeRatio.toFixed(2) + '%</td>' +
-                    '<td class="text-right">' + compRatioStr + '</td>' +
+                    '<td class="col-cat-name">' + escHtml(item.name) + '</td>' +
+                    '<td class="col-cat-sales text-right">' + bDisplay + '</td>' +
+                    '<td class="col-cat-ratio text-right">' + bRatioDisplay + '</td>' +
+                    '<td class="col-cat-sales text-right">' + cDisplay + '</td>' +
+                    '<td class="col-cat-diff text-right">' + salesDiffHtml + '</td>' +
+                    '<td class="col-cat-ratio text-right">' + cRatioDisplay + '</td>' +
+                    '<td class="col-cat-diff text-right">' + ratioDiffHtml + '</td>' +
+                    '<td class="col-cat-ratio text-right">' + compRatioHtml + '</td>' +
                     '</tr>';
             }).join('');
         } else {
-            catBody.innerHTML = BLANK_MSG_5;
+            catBody.innerHTML = BLANK_MSG_8;
         }
     }
 
@@ -707,13 +782,13 @@ function renderTables() {
         if (risingBody) {
             risingBody.innerHTML = rising.length > 0
                 ? rising.map(function(d, i) {
-                    var growthStr = d.bSales > 0 ? (d.cSales / d.bSales * 100).toFixed(1) + '%' : '新規';
+                    var growthStr = d.bSales > 0 ? formatCompRatio(d.cSales / d.bSales * 100) : '<span class="diff-new">新規</span>';
                     return '<tr>' +
                         '<td style="text-align:center;">' + (i+1) + '</td>' +
                         '<td style="font-weight:500;">' + escHtml(d.name) + '</td>' +
                         '<td class="text-right">' + formatYen(d.bSales) + '</td>' +
                         '<td class="text-right">' + formatYen(d.cSales) + '</td>' +
-                        '<td class="text-right" style="color:var(--accent-green)">+' + formatYen(d.diff).replace('¥','' ) + '</td>' +
+                        '<td class="text-right">' + formatDiffYen(d.diff) + '</td>' +
                         '<td class="text-right">' + growthStr + '</td>' +
                         '</tr>';
                 }).join('')
@@ -722,13 +797,13 @@ function renderTables() {
         if (fallingBody) {
             fallingBody.innerHTML = falling.length > 0
                 ? falling.map(function(d, i) {
-                    var remainStr = d.bSales > 0 ? (d.cSales / d.bSales * 100).toFixed(1) + '%' : '-';
+                    var remainStr = d.bSales > 0 ? formatCompRatio(d.cSales / d.bSales * 100) : '-';
                     return '<tr>' +
                         '<td style="text-align:center;">' + (i+1) + '</td>' +
                         '<td style="font-weight:500;">' + escHtml(d.name) + '</td>' +
                         '<td class="text-right">' + formatYen(d.bSales) + '</td>' +
                         '<td class="text-right">' + formatYen(d.cSales) + '</td>' +
-                        '<td class="text-right" style="color:var(--accent-red)">' + formatYen(d.diff) + '</td>' +
+                        '<td class="text-right">' + formatDiffYen(d.diff) + '</td>' +
                         '<td class="text-right">' + remainStr + '</td>' +
                         '</tr>';
                 }).join('')
@@ -740,86 +815,106 @@ function renderTables() {
     }
 
     // 3. 単品ランキングテーブル Best15 (日商ベース)
-    // 比較基準テーブル (6列: 順位 / 商品名 / 商品コード / 日商 / 構成比 / 前年比)
+    // 基準データおよび比較対象データの商品順位・日商マップを作成
+    var baseRankMap = {};
+    var baseSalesMap = {};
+    if (uploadedBaseData && uploadedBaseData.topItems) {
+        uploadedBaseData.topItems.forEach(function(it, i) {
+            baseRankMap[it.name] = i + 1;
+            baseSalesMap[it.name] = it.dailySales;
+        });
+    }
+
+    var compareRankMap = {};
+    var compareSalesMap = {};
+    if (uploadedCompareData && uploadedCompareData.topItems) {
+        uploadedCompareData.topItems.forEach(function(it, i) {
+            compareRankMap[it.name] = i + 1;
+            compareSalesMap[it.name] = it.dailySales;
+        });
+    }
+
+    // 比較基準テーブル (9列: 順位/商品名/商品コード/日商/構成比/比較順位/順位変動/日商差分/前年比)
     var weekBody = document.getElementById('tbody-week');
     if (weekBody) {
         var weekData = uploadedBaseData;
         weekBody.innerHTML = (weekData && weekData.topItems && weekData.topItems.length > 0)
             ? weekData.topItems.slice(0, 15).map(function(item, idx) {
+                var currentRank = idx + 1;
                 var dailySalesStr = formatYen(item.dailySales);
                 var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
                     ? item.ratio
                     : (weekData.totalDailySales > 0 ? (item.dailySales / weekData.totalDailySales * 100) : null);
                 var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
-                var compRatioStr = (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio))
-                    ? item.compRatio.toFixed(1) + '%'
+
+                var compRank = compareRankMap[item.name];
+                var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '圏外') : '-';
+                var rankDiffHtml = uploadedCompareData ? formatRankDiff(currentRank, compRank) : '-';
+
+                var cSales = compareSalesMap[item.name] || 0;
+                var salesDiffHtml = uploadedCompareData ? formatDiffYen(cSales - item.dailySales) : '-';
+                var compRatioHtml = (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio))
+                    ? formatCompRatio(item.compRatio)
                     : '-';
 
                 return '<tr>' +
-                    '<td class="col-rank" style="text-align:center;">' + (idx+1) + '</td>' +
+                    '<td class="col-rank" style="text-align:center;">' + currentRank + '</td>' +
                     '<td class="col-name" style="font-weight:500;" title="' + escHtml(item.name) + '">' + escHtml(item.name) + '</td>' +
                     '<td class="col-code" style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
                     '<td class="col-sales text-right" style="text-align:right;">' + dailySalesStr + '</td>' +
                     '<td class="col-ratio text-right" style="text-align:right;">' + ratioStr + '</td>' +
-                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioStr + '</td>' +
+                    '<td class="col-other-rank text-center" style="text-align:center;">' + compRankDisplay + '</td>' +
+                    '<td class="col-rank-diff text-center" style="text-align:center;">' + rankDiffHtml + '</td>' +
+                    '<td class="col-sales-diff text-right" style="text-align:right;">' + salesDiffHtml + '</td>' +
+                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioHtml + '</td>' +
                     '</tr>';
             }).join('')
-            : BLANK_MSG_6;
+            : BLANK_MSG_9;
     }
 
-    // 比較対象テーブル (7列: 順位 / 商品名 / 商品コード / 日商 / 構成比 / 基準順位 / 前年比)
+    // 比較対象テーブル (9列: 順位/商品名/商品コード/日商/構成比/基準順位/順位変動/日商差分/前年比)
     var dayBody = document.getElementById('tbody-day');
     if (dayBody) {
         var dayData = uploadedCompareData;
-        var baseRankMap = {};
-        var baseSalesMap = {};
-        if (uploadedBaseData && uploadedBaseData.topItems) {
-            uploadedBaseData.topItems.forEach(function(it, i) {
-                baseRankMap[it.name] = i + 1;
-                baseSalesMap[it.name] = it.dailySales;
-            });
-        }
         dayBody.innerHTML = (dayData && dayData.topItems && dayData.topItems.length > 0)
             ? dayData.topItems.slice(0, 15).map(function(item, idx) {
+                var currentRank = idx + 1;
                 var baseRank = baseRankMap[item.name];
-                var rankDisplay = baseRank ? baseRank + '位' : '圏外';
-                var dailySalesStr = formatYen(item.dailySales);
+                var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '圏外') : '-';
+                var rankDiffHtml = uploadedBaseData ? formatRankDiff(baseRank, currentRank) : '-';
 
+                var dailySalesStr = formatYen(item.dailySales);
                 var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
                     ? item.ratio
                     : (dayData.totalDailySales > 0 ? (item.dailySales / dayData.totalDailySales * 100) : null);
                 var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
 
-                // 前年比（売上高の比較日比）: CSVの値があればそれ、なければ基準データとの対比率を算出
-                var compRatioStr = '-';
+                var bSales = baseSalesMap[item.name] || 0;
+                var salesDiffHtml = uploadedBaseData ? formatDiffYen(item.dailySales - bSales) : '-';
+
+                // 前年比（売上高の比較日比）
+                var compRatioVal = null;
                 if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
-                    compRatioStr = item.compRatio.toFixed(1) + '%';
-                } else if (baseSalesMap[item.name] && baseSalesMap[item.name] > 0) {
-                    compRatioStr = (item.dailySales / baseSalesMap[item.name] * 100).toFixed(1) + '%';
+                    compRatioVal = item.compRatio;
+                } else if (bSales > 0) {
+                    compRatioVal = (item.dailySales / bSales * 100);
                 }
+                var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
 
                 return '<tr>' +
-                    '<td class="col-rank" style="text-align:center;">' + (idx+1) + '</td>' +
+                    '<td class="col-rank" style="text-align:center;">' + currentRank + '</td>' +
                     '<td class="col-name" style="font-weight:500;" title="' + escHtml(item.name) + '">' + escHtml(item.name) + '</td>' +
                     '<td class="col-code" style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
                     '<td class="col-sales text-right" style="text-align:right;">' + dailySalesStr + '</td>' +
                     '<td class="col-ratio text-right" style="text-align:right;">' + ratioStr + '</td>' +
-                    '<td class="col-base-rank text-center" style="text-align:center;">' + rankDisplay + '</td>' +
-                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioStr + '</td>' +
+                    '<td class="col-other-rank text-center" style="text-align:center;">' + baseRankDisplay + '</td>' +
+                    '<td class="col-rank-diff text-center" style="text-align:center;">' + rankDiffHtml + '</td>' +
+                    '<td class="col-sales-diff text-right" style="text-align:right;">' + salesDiffHtml + '</td>' +
+                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioHtml + '</td>' +
                     '</tr>';
             }).join('')
-            : BLANK_MSG_7;
+            : BLANK_MSG_9;
     }
-}
-
-// XSS対策: HTMLエスケープユーティリティ
-function escHtml(str) {
-    if (!str) return '-';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }
 
 // ==========================================================================
