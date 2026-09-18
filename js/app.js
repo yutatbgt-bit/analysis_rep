@@ -830,15 +830,15 @@ function renderTables() {
                     : '-';
 
                 return '<tr>' +
-                    '<td class="col-cat-name">' + escHtml(item.name) + '</td>' +
-                    '<td class="col-cat-sales text-right">' + bDisplay + '</td>' +
-                    '<td class="col-cat-ratio text-right">' + bRatioDisplay + '</td>' +
-                    '<td class="col-cat-sales text-right">' + cDisplay + '</td>' +
-                    '<td class="col-cat-diff text-right">' + salesDiffHtml + '</td>' +
-                    '<td class="col-cat-ratio text-right">' + cRatioDisplay + '</td>' +
-                    '<td class="col-cat-diff text-right">' + ratioDiffHtml + '</td>' +
-                    '<td class="col-cat-ratio text-right">' + compRatioHtml + '</td>' +
-                    '</tr>';
+                      '<td class="col-cat-name">' + escHtml(item.name) + '</td>' +
+                      '<td class="col-cat-sales text-right">' + bDisplay + '</td>' +
+                      '<td class="col-cat-sales text-right">' + cDisplay + '</td>' +
+                      '<td class="col-cat-diff text-right">' + salesDiffHtml + '</td>' +
+                      '<td class="col-cat-ratio text-right">' + bRatioDisplay + '</td>' +
+                      '<td class="col-cat-ratio text-right">' + cRatioDisplay + '</td>' +
+                      '<td class="col-cat-diff text-right">' + ratioDiffHtml + '</td>' +
+                      '<td class="col-cat-ratio text-right">' + compRatioHtml + '</td>' +
+                      '</tr>';
             }).join('');
         } else {
             catBody.innerHTML = BLANK_MSG_8;
