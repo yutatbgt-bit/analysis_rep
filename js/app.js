@@ -725,6 +725,18 @@ function renderCommentary() {
     }
 }
 
+// ==========================================================================
+// インラインドロップハンドラ（ondrop属性から直接呼び出す）
+// addEventListener のタイミング問題を完全に排除した実装
+// ==========================================================================
+function handleInlineDrop(event, pillId, prefix, type) {
+    var dt = event.dataTransfer;
+    if (!dt || !dt.files || dt.files.length === 0) return;
+    var file = dt.files[0];
+    updateFilePill(pillId, file.name, prefix);
+    handleFileUpload(file, type);
+}
+
 function handleFileUpload(file, type) {
     if (!file) return;
 
