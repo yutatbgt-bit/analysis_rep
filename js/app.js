@@ -925,45 +925,72 @@ function renderTables() {
           }
       }
 
-    // 比較基準テーブル (9列: 順位/商品名/商品コード/日商/構成比/比較順位/順位変動/日商差分/前年比)
-    var weekBody = document.getElementById('tbody-week');
-    if (weekBody) {
-        var weekData = uploadedBaseData;
-        weekBody.innerHTML = (weekData && weekData.topItems && weekData.topItems.length > 0)
-            ? weekData.topItems.slice(0, 50).map(function(item, idx) {
-                var currentRank = idx + 1;
-                var dailySalesStr = formatYen(item.dailySales);
-                var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
-                    ? item.ratio
-                    : (weekData.totalDailySales > 0 ? (item.dailySales / weekData.totalDailySales * 100) : null);
-                var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+          // 比較基準テーブル (9列: 順位/商品名/商品コード/日商/構成比/比較順位/順位変動/日商差分/前年比)
+      window.renderRankTableWeek = function(page) {
+          var weekBody = document.getElementById('tbody-week');
+          var paginationDiv = document.getElementById('pagination-week');
+          if (!weekBody) return;
+          var weekData = uploadedBaseData;
+          if (!weekData || !weekData.topItems || weekData.topItems.length === 0) {
+              weekBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
+              if (paginationDiv) paginationDiv.innerHTML = '';
+              return;
+          }
 
-                var compRank = compareRankMap[item.name];
-                var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '-') : '-';
-                var rankDiffHtml = uploadedCompareData ? formatRankDiff(currentRank, compRank) : '-';
+          var items = weekData.topItems.slice(0, 50);
+          var totalPages = Math.ceil(items.length / window.rankItemsPerPage);
+          if (page < 1) page = 1;
+          if (page > totalPages) page = totalPages;
+          window.currentRankPageWeek = page;
 
-                var cSales = compareSalesMap[item.name] || 0;
-                var salesDiffHtml = uploadedCompareData ? formatDiffYen(cSales - item.dailySales) : '-';
-                var compRatioHtml = (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio))
-                    ? formatCompRatio(item.compRatio)
-                    : '-';
+          var startIdx = (page - 1) * window.rankItemsPerPage;
+          var endIdx = startIdx + window.rankItemsPerPage;
+          var pageItems = items.slice(startIdx, endIdx);
 
-                return '<tr>' +
-                    '<td class="col-rank" style="text-align:center;">' + currentRank + '</td>' +
-                    '<td class="col-name" style="font-weight:500;" title="' + escHtml(item.name) + '">' + escHtml(item.name) + '</td>' +
-                    '<td class="col-code" style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
-                    '<td class="col-sales text-right" style="text-align:right;">' + dailySalesStr + '</td>' +
-                    '<td class="col-ratio text-right" style="text-align:right;">' + ratioStr + '</td>' +
-                    '<td class="col-other-rank text-center" style="text-align:center;">' + compRankDisplay + '</td>' +
-                    '<td class="col-rank-diff text-center" style="text-align:center;">' + rankDiffHtml + '</td>' +
-                    '<td class="col-sales-diff text-right" style="text-align:right;">' + salesDiffHtml + '</td>' +
-                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioHtml + '</td>' +
-                    '</tr>';
-            }).join('')
-            : BLANK_MSG_9;
-    }
+          weekBody.innerHTML = pageItems.map(function(item, i) {
+              var idx = startIdx + i;
+              var currentRank = idx + 1;
+              var dailySalesStr = formatYen(item.dailySales);
+              var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
+                  ? item.ratio
+                  : (weekData.totalDailySales > 0 ? (item.dailySales / weekData.totalDailySales * 100) : null);
+              var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
 
-    // 比較対象テーブル (9列: 順位/商品名/商品コード/日商/構成比/基準順位/順位変動/日商差分/前年比)
+              var compRank = compareRankMap[item.name];
+              var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '-') : '-';
+              var rankDiffHtml = uploadedCompareData ? formatRankDiff(currentRank, compRank) : '-';
+
+              var cSales = compareSalesMap[item.name] || 0;
+              var salesDiffHtml = uploadedCompareData ? formatDiffYen(cSales - item.dailySales) : '-';
+
+              // 前年比（比較対象 / 基準）
+              var compRatioVal = null;
+              if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+                  compRatioVal = item.compRatio;
+              } else if (item.dailySales > 0 && cSales > 0) {
+                  compRatioVal = (cSales / item.dailySales * 100);
+              }
+              var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
+
+              return '<tr>' +
+                  '<td class="text-center">' + currentRank + '</td>' +
+                  '<td class="font-medium">' + escHtml(item.name) + '</td>' +
+                  '<td>' + (item.code || '') + '</td>' +
+                  '<td class="text-right">' + dailySalesStr + '</td>' +
+                  '<td class="text-right">' + ratioStr + '</td>' +
+                  '<td class="text-center">' + compRankDisplay + '</td>' +
+                  '<td class="text-center">' + rankDiffHtml + '</td>' +
+                  '<td class="text-right">' + salesDiffHtml + '</td>' +
+                  '<td class="text-right">' + compRatioHtml + '</td>' +
+                  '</tr>';
+          }).join('');
+
+          renderPagination(totalPages, page, 'pagination-week', function(newPage) {
+              window.renderRankTableWeek(newPage);
+          });
+      };
+      window.renderRankTableWeek(window.currentRankPageWeek);
+// 比較対象テーブル (9列: 順位/商品名/商品コード/日商/構成比/基準順位/順位変動/日商差分/前年比)
     var dayBody = document.getElementById('tbody-day');
     if (dayBody) {
         var dayData = uploadedCompareData;
@@ -1360,3 +1387,38 @@ function restorePersistedData() {
         console.warn('[restorePersistedData] 復元エラー:', err);
     });
 }
+
+    // --- ページネーション描画共通関数 ---
+    function renderPagination(totalPages, currentPage, containerId, onClickCallback) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        // 前へ
+        var prevBtn = document.createElement('button');
+        prevBtn.className = 'page-btn';
+        prevBtn.textContent = '前へ';
+        prevBtn.disabled = (currentPage === 1);
+        prevBtn.onclick = function() { onClickCallback(currentPage - 1); };
+        container.appendChild(prevBtn);
+
+        // ページ番号
+        for (var i = 1; i <= totalPages; i++) {
+            var btn = document.createElement('button');
+            btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+            btn.textContent = i;
+            (function(pageNum) {
+                btn.onclick = function() { onClickCallback(pageNum); };
+            })(i);
+            container.appendChild(btn);
+        }
+
+        // 次へ
+        var nextBtn = document.createElement('button');
+        nextBtn.className = 'page-btn';
+        nextBtn.textContent = '次へ';
+        nextBtn.disabled = (currentPage === totalPages);
+        nextBtn.onclick = function() { onClickCallback(currentPage + 1); };
+        container.appendChild(nextBtn);
+    }
