@@ -874,7 +874,7 @@ function renderTables() {
         if (risingBody) {
             risingBody.innerHTML = rising.length > 0
                 ? rising.map(function(d, i) {
-                    var growthStr = d.bSales > 0 ? formatCompRatio(d.cSales / d.bSales * 100) : '<span class="diff-new">新規</span>';
+                    var growthStr = d.bSales > 0 ? formatCompRatio(d.cSales / d.bSales * 100) : '-';
                     return '<tr>' +
                         '<td style="text-align:center;">' + (i+1) + '</td>' +
                         '<td style="font-weight:500;">' + escHtml(d.name) + '</td>' +
