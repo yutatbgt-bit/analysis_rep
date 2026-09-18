@@ -726,16 +726,24 @@ function renderCommentary() {
 }
 
 // ==========================================================================
-// インラインドロップハンドラ（ondrop属性から直接呼び出す）
-// addEventListener のタイミング問題を完全に排除した実装
 // ==========================================================================
-function handleInlineDrop(event, pillId, prefix, type) {
+// インライン ondrop ハンドラ（HTML属性から直接呼び出し）
+// 引数を type のみにしてHTML属性内の日本語文字列を排除
+// ==========================================================================
+function handleInlineDrop(event, type) {
     var dt = event.dataTransfer;
-    if (!dt || !dt.files || dt.files.length === 0) return;
+    if (!dt || !dt.files || dt.files.length === 0) {
+        console.warn('[handleInlineDrop] dataTransfer.files が空です');
+        return;
+    }
     var file = dt.files[0];
+    console.log('[handleInlineDrop] ファイルドロップ検出:', file.name, 'type:', type);
+    var pillId  = type === 'base' ? 'file-name-base' : 'file-name-compare';
+    var prefix  = type === 'base' ? '基準' : '比較';
     updateFilePill(pillId, file.name, prefix);
     handleFileUpload(file, type);
 }
+
 
 function handleFileUpload(file, type) {
     if (!file) return;
