@@ -120,7 +120,7 @@ function formatRankDiff(fromRank, toRank) {
         return '<span class="diff-new">New</span>';
     }
     if (!toRank) {
-        return '<span class="diff-minus">圏外 ↓</span>';
+        return '<span class="diff-minus">-</span>';
     }
     var diff = fromRank - toRank; // 例: 3位から1位なら +2
     if (diff > 0) {
@@ -939,7 +939,7 @@ function renderTables() {
                 var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
 
                 var compRank = compareRankMap[item.name];
-                var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '圏外') : '-';
+                var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '-') : '-';
                 var rankDiffHtml = uploadedCompareData ? formatRankDiff(currentRank, compRank) : '-';
 
                 var cSales = compareSalesMap[item.name] || 0;
@@ -1167,7 +1167,7 @@ function renderCommentary() {
                 if (bR !== undefined && cR !== undefined && (bR - cR) >= 2) {
                     risingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位→' + cR + '位）');
                 } else if (bR === undefined && cR <= 5) {
-                    risingRankItems.push('「' + escHtml(it.name) + '」（圏外→' + cR + '位）');
+                    risingRankItems.push('「' + escHtml(it.name) + '」（-' + cR + '位）');
                 }
             });
             if (risingRankItems.length > 0) {
@@ -1187,7 +1187,7 @@ function renderCommentary() {
                 if (bR !== undefined && cR !== undefined && (cR - bR) >= 2) {
                     fallingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位→' + cR + '位）');
                 } else if (bR <= 5 && cR === undefined) {
-                    fallingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位→圏外）');
+                    fallingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位-）');
                 }
             });
             if (fallingRankItems.length > 0) {
