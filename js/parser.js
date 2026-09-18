@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 売上データ解析パーサーモジュール (parser.js)
  * 単品別売上実績CSV/Excel および 日別集計表に対応
  */
@@ -24,6 +24,35 @@
         var s = String(val).replace(/[¥,％%\s]/g, '').trim();
         var num = parseFloat(s);
         return isNaN(num) ? 0 : num;
+    }
+
+    /**
+     * 商品名からの高精度カテゴリ推定
+     */
+    var CATEGORY_RULES = [
+        { name: '野菜', keywords: ['キャベツ', 'レタス', 'トマト', 'ねぎ', 'ネギ', '葱', '玉葱', 'たまねぎ', 'タマネギ', '人参', 'にんじん', '大根', 'だいこん', 'きゅうり', '胡瓜', '茄子', 'なす', 'ピーマン', 'ほうれん草', '小松菜', '白菜', 'ブロッコリー', 'きのこ', '椎茸', 'しめじ', 'えのき', 'もやし', 'じゃがいも', 'ポテト', 'さつまいも', '南瓜', 'かぼちゃ', '野菜', '青果', '生鮮'] },
+        { name: '果物', keywords: ['マスカット', 'ぶどう', '葡萄', 'りんご', '林檎', 'みかん', '蜜柑', '柑橘', 'バナナ', 'いちご', '苺', '桃', '梨', 'なし', 'スイカ', '西瓜', 'メロン', 'キウイ', 'パイナップル', 'レモン', '果物', 'フルーツ'] },
+        { name: '精肉', keywords: ['牛', '豚', '鶏', 'ステーキ', '焼肉', 'カルビ', 'ロース', 'バラ', 'ヒレ', 'モモ', 'ひき肉', '挽肉', 'ミンチ', 'ホルモン', 'ベーコン', 'ハム', 'ソーセージ', 'ウインナー', '肉'] },
+        { name: '鮮魚', keywords: ['鮭', 'さけ', 'サケ', 'サーモン', '鮪', 'まぐろ', 'マグロ', '鯛', 'たい', '鰤', 'ぶり', 'ブリ', '鯖', 'さば', 'サバ', '鯵', 'あじ', '秋刀魚', 'さんま', '海老', 'えび', 'エビ', '烏賊', 'いか', 'イカ', '蛸', 'たこ', 'タコ', '帆立', 'ほたて', '貝', '刺身', '切身', '生鮮魚', '魚介', '水産', '鮮魚'] },
+        { name: '惣菜・デリカ', keywords: ['弁当', 'かつ重', 'カツ重', '天重', '重', '丼', '寿司', '鮨', 'にぎり', '巻寿司', 'フライ', 'から揚げ', '唐揚', 'カツ', 'コロッケ', '天ぷら', '天麩羅', 'サラダ', '惣菜', 'そうざい', 'おかず', 'デリカ', 'オードブル', 'ピザ'] },
+        { name: '日配・乳製品', keywords: ['牛乳', 'ヨーグルト', 'チーズ', 'バター', 'プリン', 'ゼリー', '豆腐', '納豆', '油揚げ', '練り物', 'ちくわ', 'かまぼこ', 'うどん', 'そば', 'ラーメン', '生麺', 'パン', '食パン', '日配', 'チルド'] },
+        { name: '米・雑穀', keywords: ['こしひかり', 'コシヒカリ', 'ひとめぼれ', 'あきたこまち', 'つや姫', 'ななつぼし', '米', '白米', '玄米', '無洗米', 'もち米'] },
+        { name: '菓子', keywords: ['チョコ', 'スナック', 'ポテトチップ', 'クッキー', 'ビスケット', '煎餅', 'おかき', 'キャンディ', 'グミ', 'ガム', 'ケーキ', '和菓子', '洋菓子', '菓子'] },
+        { name: '飲料・酒', keywords: ['茶', '緑茶', '烏龍茶', '麦茶', 'コーヒー', '珈琲', 'ジュース', '水', '天然水', '炭酸', 'コーラ', 'ビール', '発泡酒', 'チューハイ', 'サワー', 'ワイン', '日本酒', '焼酎', 'ウイスキー', 'ハイボール', '酒', '飲料'] },
+        { name: '加工食品・調味料', keywords: ['醤油', '味噌', 'みりん', '料理酒', '油', 'マヨネーズ', 'ケチャップ', 'ドレッシング', 'ソース', 'カレー', 'ルー', 'パスタ', '缶詰', 'インスタント', 'スープ', '調味料'] }
+    ];
+
+    function detectCategory(name) {
+        if (!name || typeof name !== 'string') return 'その他';
+        for (var i = 0; i < CATEGORY_RULES.length; i++) {
+            var rule = CATEGORY_RULES[i];
+            for (var k = 0; k < rule.keywords.length; k++) {
+                if (name.indexOf(rule.keywords[k]) !== -1) {
+                    return rule.name;
+                }
+            }
+        }
+        return 'その他';
     }
 
     /**
@@ -82,6 +111,7 @@
             var h = toHalfWidth(String(headerRow[c] || ''));
             if (h.indexOf('コード') !== -1) colMap.code = c;
             else if (h.indexOf('品名') !== -1 || h.indexOf('商品名') !== -1) colMap.name = c;
+            else if (h.indexOf('部門') !== -1 || h.indexOf('カテゴリ') !== -1 || h.indexOf('大分類') !== -1 || h.indexOf('分類') !== -1) colMap.category = c;
             else if (h.indexOf('日商') !== -1 || (h.indexOf('売上') !== -1 && h.indexOf('日') !== -1)) colMap.dailySales = c;
             else if (h.indexOf('売上') !== -1 && h.indexOf('累計') !== -1) colMap.totalSales = c;
             else if (h.indexOf('構成比') !== -1) colMap.ratio = c;
@@ -124,10 +154,14 @@
             var hits = parseNumeric(row[colMap.hits]);
             var unitPrice = parseNumeric(row[colMap.unitPrice]);
 
+            var catFromCol = colMap.category !== undefined ? toHalfWidth(String(row[colMap.category] || '')) : '';
+            var resolvedCategory = catFromCol || detectCategory(nameCell);
+
             if (dailySales > 0 || periodSales > 0) {
                 items.push({
                     code: firstCell,
                     name: nameCell,
+                    category: resolvedCategory,
                     dailySales: dailySales,
                     periodSales: periodSales,
                     ratio: ratio,
@@ -149,20 +183,13 @@
             totalDailySales = sum;
         }
 
-        // カテゴリ推定（品名からの簡易分類）
-        var KNOWN_CATS = ['野菜', '果物', 'チルド', 'インストアデリカ', '牛肉', '豚肉', '鶏肉', '日配', '菓子', '洋惣菜', '和惣菜', '刺身', '寿司', '飲料', '酒', '米', '鮮魚'];
+        // カテゴリ別集計
         items.forEach(function(item) {
-            var matchedCat = 'その他';
-            for (var i = 0; i < KNOWN_CATS.length; i++) {
-                if (item.name.indexOf(KNOWN_CATS[i]) !== -1) {
-                    matchedCat = KNOWN_CATS[i];
-                    break;
-                }
+            var cat = item.category || 'その他';
+            if (!categoryMap[cat]) {
+                categoryMap[cat] = 0;
             }
-            if (!categoryMap[matchedCat]) {
-                categoryMap[matchedCat] = 0;
-            }
-            categoryMap[matchedCat] += item.dailySales;
+            categoryMap[cat] += item.dailySales;
         });
 
         var categories = [];

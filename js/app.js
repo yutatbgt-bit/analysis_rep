@@ -458,10 +458,47 @@ function renderDashboard() {
     renderCommentary();
 }
 
+// ==========================================================================
+// カテゴリ統合ヘルパー（基準と比較の全カテゴリをマージ＆対比計算）
+// ==========================================================================
+function getIntegratedCategories() {
+    var bCats = (uploadedBaseData && uploadedBaseData.categories) ? uploadedBaseData.categories : [];
+    var cCats = (uploadedCompareData && uploadedCompareData.categories) ? uploadedCompareData.categories : [];
+
+    var map = {};
+    bCats.forEach(function(c) {
+        map[c.name] = { name: c.name, bSales: c.sales, cSales: 0, bRatio: c.ratio, cRatio: 0 };
+    });
+    cCats.forEach(function(c) {
+        if (!map[c.name]) {
+            map[c.name] = { name: c.name, bSales: 0, cSales: c.sales, bRatio: 0, cRatio: c.ratio };
+        } else {
+            map[c.name].cSales = c.sales;
+            map[c.name].cRatio = c.ratio;
+        }
+    });
+
+    var list = [];
+    for (var k in map) {
+        var item = map[k];
+        item.salesDiff = item.cSales - item.bSales;
+        item.ratioDiff = item.cRatio - item.bRatio;
+        item.displaySales = item.cSales > 0 ? item.cSales : item.bSales;
+        if (item.bSales > 0 && item.cSales > 0) {
+            item.compRatio = (item.cSales / item.bSales * 100);
+        } else {
+            item.compRatio = null;
+        }
+        list.push(item);
+    }
+
+    list.sort(function(a, b) { return b.displaySales - a.displaySales; });
+    return list;
+}
+
 function renderCharts() {
     if (typeof Chart === 'undefined') return;
 
-    // プレースホルダーを隠してCanvasを表示
     var barCanvas = document.getElementById('categoryBarChart');
     var barPlaceholder = document.getElementById('placeholder-bar-chart');
     if (barCanvas) barCanvas.style.display = 'block';
@@ -472,92 +509,124 @@ function renderCharts() {
     if (pieCanvas) pieCanvas.style.display = 'block';
     if (piePlaceholder) piePlaceholder.style.display = 'none';
 
-    // 既存インスタンスの破棄
     var oldBar = Chart.getChart('categoryBarChart');
     if (oldBar) oldBar.destroy();
     var oldPie = Chart.getChart('categoryPieChart');
     if (oldPie) oldPie.destroy();
 
-    var activeData = uploadedCompareData || uploadedBaseData;
-    if (!activeData || !activeData.categories || activeData.categories.length === 0) return;
+    var integratedCats = getIntegratedCategories();
+    if (integratedCats.length === 0) return;
 
-    var topCats = activeData.categories.slice(0, 12);
+    var topCats = integratedCats.slice(0, 12);
     var labels = topCats.map(function(c) { return c.name; });
-    var compSalesData = topCats.map(function(c) { return c.sales; });
-
-    var baseSalesMap = {};
-    if (uploadedBaseData && uploadedBaseData.categories) {
-        uploadedBaseData.categories.forEach(function(c) {
-            baseSalesMap[c.name] = c.sales;
-        });
-    }
-    var baseSalesData = labels.map(function(name) { return baseSalesMap[name] || 0; });
-    var ratioData = labels.map(function(name, i) {
-        var b = baseSalesData[i];
-        var c = compSalesData[i];
-        if (b > 0 && c > 0) return parseFloat((c / b * 100).toFixed(1));
-        return 100.0;
-    });
 
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
     var textMuted = isLight ? '#64748b' : '#94a3b8';
     var gridColor = isLight ? 'rgba(0,0,0,0.06)' : '#2d3348';
 
-    // 棒グラフ作成
+    // 1. カテゴリ別棒グラフ（比較対比）
     if (barCanvas) {
         var barCtx = barCanvas.getContext('2d');
+        var datasets = [];
+
+        if (uploadedBaseData && uploadedCompareData) {
+            var ratioData = topCats.map(function(c) {
+                return c.compRatio !== null ? parseFloat(c.compRatio.toFixed(1)) : 100.0;
+            });
+            var bSalesData = topCats.map(function(c) { return c.bSales; });
+            var cSalesData = topCats.map(function(c) { return c.cSales; });
+
+            datasets.push({
+                label: '対比 (%)',
+                type: 'line',
+                data: ratioData,
+                backgroundColor: '#fbbf24',
+                borderColor: '#fbbf24',
+                borderWidth: 2,
+                pointRadius: 4,
+                yAxisID: 'y1',
+                tension: 0.1
+            });
+            datasets.push({
+                label: '比較基準 日商',
+                type: 'bar',
+                data: bSalesData,
+                backgroundColor: '#475569',
+                borderColor: '#64748b',
+                borderWidth: 1,
+                yAxisID: 'y'
+            });
+            datasets.push({
+                label: '比較対象 日商',
+                type: 'bar',
+                data: cSalesData,
+                backgroundColor: '#60a5fa',
+                borderColor: '#3b82f6',
+                borderWidth: 1,
+                yAxisID: 'y'
+            });
+        } else if (uploadedBaseData) {
+            var bSalesOnly = topCats.map(function(c) { return c.bSales; });
+            datasets.push({
+                label: '比較基準 日商',
+                type: 'bar',
+                data: bSalesOnly,
+                backgroundColor: '#475569',
+                borderColor: '#64748b',
+                borderWidth: 1,
+                yAxisID: 'y'
+            });
+        } else if (uploadedCompareData) {
+            var cSalesOnly = topCats.map(function(c) { return c.cSales; });
+            datasets.push({
+                label: '比較対象 日商',
+                type: 'bar',
+                data: cSalesOnly,
+                backgroundColor: '#60a5fa',
+                borderColor: '#3b82f6',
+                borderWidth: 1,
+                yAxisID: 'y'
+            });
+        }
+
         new Chart(barCtx, {
             type: 'bar',
             data: {
                 labels: labels,
-                datasets: [
-                    {
-                        label: '対比 (%)',
-                        type: 'line',
-                        data: ratioData,
-                        backgroundColor: '#fbbf24',
-                        borderColor: '#fbbf24',
-                        borderWidth: 2,
-                        yAxisID: 'y1',
-                        tension: 0.1
-                    },
-                    {
-                        label: '比較基準',
-                        type: 'bar',
-                        data: baseSalesData,
-                        backgroundColor: '#475569',
-                        borderColor: '#64748b',
-                        borderWidth: 1,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: '比較対象',
-                        type: 'bar',
-                        data: compSalesData,
-                        backgroundColor: '#60a5fa',
-                        borderColor: '#3b82f6',
-                        borderWidth: 1,
-                        yAxisID: 'y'
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
                     x: { ticks: { color: textMuted, maxRotation: 45, minRotation: 45 }, grid: { display: false } },
-                    y: { ticks: { color: textMuted }, grid: { color: gridColor } },
-                    y1: { position: 'right', grid: { display: false }, ticks: { color: textMuted } }
+                    y: {
+                        ticks: {
+                            color: textMuted,
+                            callback: function(v) { return '¥' + (v >= 10000 ? (v / 10000).toFixed(0) + '万' : v.toLocaleString()); }
+                        },
+                        grid: { color: gridColor }
+                    },
+                    y1: {
+                        position: 'right',
+                        display: (uploadedBaseData && uploadedCompareData) ? true : false,
+                        grid: { display: false },
+                        ticks: { color: textMuted, callback: function(v) { return v + '%'; } }
+                    }
                 }
             }
         });
     }
 
-    // 円グラフ作成
+    // 2. カテゴリ円グラフ（構成比ドーナツチャート）
     if (pieCanvas) {
         var pieCtx = pieCanvas.getContext('2d');
-        var pieLabels = topCats.slice(0, 8).map(function(c) { return c.name; });
-        var pieValues = topCats.slice(0, 8).map(function(c) { return parseFloat(c.ratio.toFixed(1)); });
+        var pieTop = topCats.slice(0, 8);
+        var pieLabels = pieTop.map(function(c) { return c.name; });
+        var pieValues = pieTop.map(function(c) {
+            var r = uploadedCompareData ? c.cRatio : c.bRatio;
+            return parseFloat(r.toFixed(1));
+        });
         var pieColors = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
 
         new Chart(pieCtx, {
@@ -568,14 +637,19 @@ function renderCharts() {
                     data: pieValues,
                     backgroundColor: pieColors,
                     borderColor: isLight ? '#ffffff' : '#1a1d27',
-                    borderWidth: 1
+                    borderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'right', labels: { color: textMuted, font: { size: 11 } } }
+                    legend: { position: 'right', labels: { color: textMuted, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.parsed + '%'; }
+                        }
+                    }
                 }
             }
         });
@@ -587,28 +661,28 @@ function renderTables() {
     var BLANK_MSG_6 = '<tr><td colspan="6" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
     var BLANK_MSG_7 = '<tr><td colspan="7" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
 
-    // 1. カテゴリ別売上テーブル (5列)
+    // 1. カテゴリ別売上テーブル (5列: カテゴリ/基準 日商/比較対象 日商/構成比/対比 %)
     var catBody = document.getElementById('tbody-category');
     if (catBody) {
-        var bCatMap = {};
-        if (uploadedBaseData && uploadedBaseData.categories) {
-            uploadedBaseData.categories.forEach(function(c) { bCatMap[c.name] = c.sales; });
-        }
-        var catSrc = uploadedCompareData || uploadedBaseData;
-        if (catSrc && catSrc.categories && catSrc.categories.length > 0) {
-            catBody.innerHTML = catSrc.categories.slice(0, 15).map(function(cat) {
-                var bSale = bCatMap[cat.name] || 0;
-                var cSale = cat.sales;
-                var compRatioStr = bSale > 0 ? (cSale / bSale * 100).toFixed(1) + '%' : '-';
+        var integratedCats = getIntegratedCategories();
+        if (integratedCats.length > 0) {
+            catBody.innerHTML = integratedCats.slice(0, 15).map(function(item) {
+                var bDisplay = uploadedBaseData ? formatYen(item.bSales) : '-';
+                var cDisplay = uploadedCompareData ? formatYen(item.cSales) : '-';
+                var activeRatio = uploadedCompareData ? item.cRatio : item.bRatio;
+                var compRatioStr = item.compRatio !== null ? item.compRatio.toFixed(1) + '%' : '-';
+
                 return '<tr>' +
-                    '<td style="font-weight:500;">' + escHtml(cat.name) + '</td>' +
-                    '<td class="text-right">' + formatYen(bSale) + '</td>' +
-                    '<td class="text-right">' + formatYen(cSale) + '</td>' +
-                    '<td class="text-right">' + cat.ratio.toFixed(2) + '%</td>' +
+                    '<td style="font-weight:500;">' + escHtml(item.name) + '</td>' +
+                    '<td class="text-right">' + bDisplay + '</td>' +
+                    '<td class="text-right">' + cDisplay + '</td>' +
+                    '<td class="text-right">' + activeRatio.toFixed(2) + '%</td>' +
                     '<td class="text-right">' + compRatioStr + '</td>' +
                     '</tr>';
             }).join('');
-        } else { catBody.innerHTML = BLANK_MSG_5; }
+        } else {
+            catBody.innerHTML = BLANK_MSG_5;
+        }
     }
 
     // 2. 急上昇・急下落テーブル (6列)
@@ -666,7 +740,6 @@ function renderTables() {
     }
 
     // 3. 単品ランキングテーブル Best15
-    // 基準 (6列: 順位/商品名/商品コード/日商/構成比/前年比)
     var weekBody = document.getElementById('tbody-week');
     if (weekBody) {
         var weekData = uploadedBaseData;
@@ -684,7 +757,6 @@ function renderTables() {
             : BLANK_MSG_6;
     }
 
-    // 比較対象 (7列: 順位/商品名/商品コード/日商/構成比/基準順位/前年比)
     var dayBody = document.getElementById('tbody-day');
     if (dayBody) {
         var dayData = uploadedCompareData;
@@ -720,25 +792,204 @@ function escHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+// ==========================================================================
+// 動的レポート生成（全体対比・カテゴリ分析・ランキング傾向）
+// ==========================================================================
 function renderCommentary() {
     var el = function(id) { return document.getElementById(id); };
 
+    // 1. 全体対比コメント
+    var cOver1 = el('commentary-overview-1');
+    var cOver2 = el('commentary-overview-2');
     if (uploadedBaseData && uploadedCompareData) {
         var bSales = uploadedBaseData.totalDailySales;
         var cSales = uploadedCompareData.totalDailySales;
-        var diff   = cSales - bSales;
-        var pct    = bSales > 0 ? ((diff / bSales) * 100).toFixed(1) : 0;
-        var bPeriod = uploadedBaseData.periodStr || '前期';
-        var cPeriod = uploadedCompareData.periodStr || '今期';
+        var diff = cSales - bSales;
+        var pct = bSales > 0 ? ((diff / bSales) * 100).toFixed(1) : 0;
+        var bPeriod = uploadedBaseData.periodStr || '比較基準期間';
+        var cPeriod = uploadedCompareData.periodStr || '比較対象期間';
 
-        var c1 = el('commentary-overview-1');
-        if (c1) c1.innerHTML = '<strong>日商の推移:</strong> 比較対象（' + escHtml(cPeriod) + '）の日商 ' + formatYen(cSales) + ' は、比較基準（' + escHtml(bPeriod) + '）の日商 ' + formatYen(bSales) + ' と比べて <strong>約' + Math.abs(pct) + '% ' + (diff >= 0 ? '増加' : '減少') + '</strong> しています。';
-        var c2 = el('commentary-overview-2');
-        if (c2) c2.innerHTML = '';
+        if (cOver1) {
+            cOver1.innerHTML = '<strong>日商の推移:</strong> 比較対象（' + escHtml(cPeriod) + '）の日商 <strong>' + formatYen(cSales) + '</strong> は、比較基準（' + escHtml(bPeriod) + '）の日商 ' + formatYen(bSales) + ' と比べて <strong>約' + Math.abs(pct) + '% ' + (diff >= 0 ? '増加（+' : '減少（-') + formatYen(Math.abs(diff)).replace('¥','') + '）</strong> しています。';
+            cOver1.style.color = '';
+        }
+        if (cOver2) {
+            cOver2.innerHTML = '<strong>全体動向:</strong> スケールを1日あたり（日商ベース）に揃えた対比分析により、曜日要因や日数差に左右されない実質的な販売推移を的確に把握できます。';
+            cOver2.style.color = '';
+        }
     } else if (uploadedBaseData || uploadedCompareData) {
         var active = uploadedCompareData || uploadedBaseData;
-        var c1 = el('commentary-overview-1');
-        if (c1) c1.innerHTML = '<strong>日商サマリー:</strong> 読み込み済みデータ（' + escHtml(active.periodStr || '対象期間') + '）の日商は <strong>' + formatYen(active.totalDailySales) + '</strong> です。もう一方のデータをアップロードすると対比分析が行われます。';
+        var activeLabel = uploadedCompareData ? '比較対象' : '比較基準';
+        if (cOver1) {
+            cOver1.innerHTML = '<strong>日商サマリー:</strong> 読み込み済み（' + activeLabel + '：' + escHtml(active.periodStr || '対象期間') + '）の日商は <strong>' + formatYen(active.totalDailySales) + '</strong>（品目数: ' + active.itemCount + '件）です。もう一方のデータをアップロードすると対比分析が行われます。';
+            cOver1.style.color = '';
+        }
+        if (cOver2) cOver2.innerHTML = '';
+    }
+
+    // 2. カテゴリ分析のまとめレポート
+    var cCat1 = el('commentary-category-1');
+    var cCat2 = el('commentary-category-2');
+    var cCat3 = el('commentary-category-3');
+    var cCat4 = el('commentary-category-4');
+
+    var integratedCats = getIntegratedCategories();
+
+    if (uploadedBaseData && uploadedCompareData && integratedCats.length > 0) {
+        // (1) 日商が上昇したカテゴリ
+        var risingSales = integratedCats.filter(function(c) { return c.salesDiff > 0; })
+            .sort(function(a, b) { return b.salesDiff - a.salesDiff; });
+        if (cCat1) {
+            if (risingSales.length > 0) {
+                var rParts = risingSales.slice(0, 3).map(function(c) {
+                    return '「' + escHtml(c.name) + '」（<strong>+' + formatYen(c.salesDiff).replace('¥','') + '</strong>）';
+                });
+                cCat1.innerHTML = '<strong>日商が上昇したカテゴリ:</strong> ' + rParts.join('、') + ' が比較対象で日商を伸ばしています。';
+            } else {
+                cCat1.innerHTML = '<strong>日商が上昇したカテゴリ:</strong> 日商を伸ばしたカテゴリは見られませんでした。';
+            }
+            cCat1.style.color = '';
+        }
+
+        // (2) 日商が下降したカテゴリ
+        var fallingSales = integratedCats.filter(function(c) { return c.salesDiff < 0; })
+            .sort(function(a, b) { return a.salesDiff - b.salesDiff; });
+        if (cCat2) {
+            if (fallingSales.length > 0) {
+                var fParts = fallingSales.slice(0, 3).map(function(c) {
+                    return '「' + escHtml(c.name) + '」（<strong>' + formatYen(c.salesDiff) + '</strong>）';
+                });
+                cCat2.innerHTML = '<strong>日商が下降したカテゴリ:</strong> ' + fParts.join('、') + ' が比較対象で日商を落としています。';
+            } else {
+                cCat2.innerHTML = '<strong>日商が下降したカテゴリ:</strong> 日商を落としたカテゴリは見られませんでした。';
+            }
+            cCat2.style.color = '';
+        }
+
+        // (3) 構成比が上昇したカテゴリ
+        var risingRatio = integratedCats.filter(function(c) { return c.ratioDiff > 0.05; })
+            .sort(function(a, b) { return b.ratioDiff - a.ratioDiff; });
+        if (cCat3) {
+            if (risingRatio.length > 0) {
+                var rrParts = risingRatio.slice(0, 3).map(function(c) {
+                    return '「' + escHtml(c.name) + '」（<strong>+' + c.ratioDiff.toFixed(2) + '%</strong>）';
+                });
+                cCat3.innerHTML = '<strong>構成比が上昇したカテゴリ:</strong> ' + rrParts.join('、') + ' が比較対象で売上シェアを拡大しています。';
+            } else {
+                cCat3.innerHTML = '<strong>構成比が上昇したカテゴリ:</strong> 有意にシェアを拡大したカテゴリはありません。';
+            }
+            cCat3.style.color = '';
+        }
+
+        // (4) 構成比が下降したカテゴリ
+        var fallingRatio = integratedCats.filter(function(c) { return c.ratioDiff < -0.05; })
+            .sort(function(a, b) { return a.ratioDiff - b.ratioDiff; });
+        if (cCat4) {
+            if (fallingRatio.length > 0) {
+                var frParts = fallingRatio.slice(0, 3).map(function(c) {
+                    return '「' + escHtml(c.name) + '」（<strong>' + c.ratioDiff.toFixed(2) + '%</strong>）';
+                });
+                cCat4.innerHTML = '<strong>構成比が下降したカテゴリ:</strong> ' + frParts.join('、') + ' が比較対象で売上シェアを縮小させています。';
+            } else {
+                cCat4.innerHTML = '<strong>構成比が下降したカテゴリ:</strong> 有意にシェアを縮小させたカテゴリはありません。';
+            }
+            cCat4.style.color = '';
+        }
+    } else if ((uploadedBaseData || uploadedCompareData) && integratedCats.length > 0) {
+        var top3 = integratedCats.slice(0, 3);
+        if (cCat1) {
+            var catParts = top3.map(function(c) {
+                var s = c.cSales > 0 ? c.cSales : c.bSales;
+                var r = c.cSales > 0 ? c.cRatio : c.bRatio;
+                return '「' + escHtml(c.name) + '」（構成比 <strong>' + r.toFixed(1) + '%</strong>, ' + formatYen(s) + '）';
+            });
+            cCat1.innerHTML = '<strong>主要構成カテゴリ:</strong> 売上上位は ' + catParts.join('、') + ' となっており、全体の売上の中心を担っています。もう一方のデータをアップロードするとカテゴリ間のシフト分析が行われます。';
+            cCat1.style.color = '';
+        }
+        if (cCat2) cCat2.innerHTML = '';
+        if (cCat3) cCat3.innerHTML = '';
+        if (cCat4) cCat4.innerHTML = '';
+    }
+
+    // 3. ランキング傾向レポート
+    var cRank1 = el('commentary-ranking-1');
+    var cRank2 = el('commentary-ranking-2');
+    var cRank3 = el('commentary-ranking-3');
+
+    if (uploadedBaseData && uploadedCompareData &&
+        uploadedBaseData.topItems && uploadedCompareData.topItems) {
+        
+        var baseItems = uploadedBaseData.topItems;
+        var compItems = uploadedCompareData.topItems;
+
+        var baseRankMap = {};
+        baseItems.forEach(function(it, idx) { baseRankMap[it.name] = idx + 1; });
+        var compRankMap = {};
+        compItems.forEach(function(it, idx) { compRankMap[it.name] = idx + 1; });
+
+        // (1) 安定首位・上位定番商品の分析
+        if (cRank1) {
+            if (baseItems.length > 0 && compItems.length > 0) {
+                var bTop1 = baseItems[0];
+                var cTop1 = compItems[0];
+                if (bTop1.name === cTop1.name) {
+                    var chg = bTop1.dailySales > 0 ? ((cTop1.dailySales / bTop1.dailySales) * 100).toFixed(0) : 100;
+                    cRank1.innerHTML = '<strong>「' + escHtml(bTop1.name) + '」の安定した需要:</strong> 両期間ともに堂々の1位（基準: ' + formatYen(bTop1.dailySales) + '、比較: ' + formatYen(cTop1.dailySales) + '、前年比: ' + chg + '%）を堅持しており、不動の柱商品として極めて安定した実績を誇っています。';
+                } else {
+                    cRank1.innerHTML = '<strong>首位商品の変動:</strong> 比較基準の首位は「' + escHtml(bTop1.name) + '」（' + formatYen(bTop1.dailySales) + '）でしたが、比較対象では「' + escHtml(cTop1.name) + '」（' + formatYen(cTop1.dailySales) + '）が首位に躍り出ました。';
+                }
+                cRank1.style.color = '';
+            }
+        }
+
+        // (2) 比較対象で順位が上昇した商品
+        if (cRank2) {
+            var risingRankItems = [];
+            compItems.forEach(function(it) {
+                var bR = baseRankMap[it.name];
+                var cR = compRankMap[it.name];
+                if (bR !== undefined && cR !== undefined && (bR - cR) >= 2) {
+                    risingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位→' + cR + '位）');
+                } else if (bR === undefined && cR <= 5) {
+                    risingRankItems.push('「' + escHtml(it.name) + '」（圏外→' + cR + '位）');
+                }
+            });
+            if (risingRankItems.length > 0) {
+                cRank2.innerHTML = '<strong>比較対象で順位が上昇した商品:</strong> ' + risingRankItems.slice(0, 3).join('、') + ' が大きく順位を伸ばし、売れ筋として急浮上しています。';
+            } else {
+                cRank2.innerHTML = '<strong>順位上昇商品:</strong> 上位陣の順位変動は比較的安定しており、急激な浮上商品は見られません。';
+            }
+            cRank2.style.color = '';
+        }
+
+        // (3) 比較対象で順位が下降した商品
+        if (cRank3) {
+            var fallingRankItems = [];
+            baseItems.forEach(function(it) {
+                var bR = baseRankMap[it.name];
+                var cR = compRankMap[it.name];
+                if (bR !== undefined && cR !== undefined && (cR - bR) >= 2) {
+                    fallingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位→' + cR + '位）');
+                } else if (bR <= 5 && cR === undefined) {
+                    fallingRankItems.push('「' + escHtml(it.name) + '」（' + bR + '位→圏外）');
+                }
+            });
+            if (fallingRankItems.length > 0) {
+                cRank3.innerHTML = '<strong>比較対象で順位が下降した商品:</strong> ' + fallingRankItems.slice(0, 3).join('、') + ' がランクを落としており、需要の落ち着きや在庫状況の確認が推奨されます。';
+            } else {
+                cRank3.innerHTML = '<strong>順位下降商品:</strong> 著しくランクダウンした定番商品はなく、堅調に推移しています。';
+            }
+            cRank3.style.color = '';
+        }
+    } else if (uploadedBaseData || uploadedCompareData) {
+        var activeItems = (uploadedCompareData && uploadedCompareData.topItems) ? uploadedCompareData.topItems : ((uploadedBaseData && uploadedBaseData.topItems) ? uploadedBaseData.topItems : []);
+        if (cRank1 && activeItems.length > 0) {
+            var t1 = activeItems[0];
+            cRank1.innerHTML = '<strong>売上首位商品:</strong> 1位は「' + escHtml(t1.name) + '」（日商 <strong>' + formatYen(t1.dailySales) + '</strong>、構成比 ' + (t1.ratio ? t1.ratio.toFixed(2) + '%' : '-') + '）です。もう一方のデータをアップロードすると順位の変動傾向が分析されます。';
+            cRank1.style.color = '';
+        }
+        if (cRank2) cRank2.innerHTML = '';
+        if (cRank3) cRank3.innerHTML = '';
     }
 }
 
