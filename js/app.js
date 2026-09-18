@@ -471,6 +471,9 @@ function resetUploadData() {
             const tblWeek = document.getElementById('table-week');
             const tblDay = document.getElementById('table-day');
 
+            var pageWeek = document.getElementById('pagination-week');
+            var pageDay = document.getElementById('pagination-day');
+            
             if (tab === 'week') {
                 btnWeek.classList.add('active');
                 btnWeek.setAttribute('aria-selected', 'true');
@@ -478,6 +481,8 @@ function resetUploadData() {
                 btnDay.setAttribute('aria-selected', 'false');
                 tblWeek.style.display = 'block';
                 tblDay.style.display = 'none';
+                if (pageWeek) pageWeek.style.display = 'flex';
+                if (pageDay) pageDay.style.display = 'none';
             } else {
                 btnDay.classList.add('active');
                 btnDay.setAttribute('aria-selected', 'true');
@@ -485,6 +490,8 @@ function resetUploadData() {
                 btnWeek.setAttribute('aria-selected', 'false');
                 tblDay.style.display = 'block';
                 tblWeek.style.display = 'none';
+                if (pageWeek) pageWeek.style.display = 'none';
+                if (pageDay) pageDay.style.display = 'flex';
             }
         }
 
