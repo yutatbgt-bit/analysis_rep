@@ -990,49 +990,71 @@ function renderTables() {
           });
       };
       window.renderRankTableWeek(window.currentRankPageWeek);
-// 比較対象テーブル (9列: 順位/商品名/商品コード/日商/構成比/基準順位/順位変動/日商差分/前年比)
-    var dayBody = document.getElementById('tbody-day');
-    if (dayBody) {
-        var dayData = uploadedCompareData;
-        dayBody.innerHTML = (dayData && dayData.topItems && dayData.topItems.length > 0)
-            ? dayData.topItems.slice(0, 50).map(function(item, idx) {
-                var currentRank = idx + 1;
-                var baseRank = baseRankMap[item.name];
-                var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '-') : '-';
-                var rankDiffHtml = uploadedBaseData ? formatRankDiff(baseRank, currentRank) : '-';
+      // 比較対象テーブル (9列: 順位/商品名/商品コード/日商/構成比/基準順位/順位変動/日商差分/前年比)
+      window.renderRankTableDay = function(page) {
+          var dayBody = document.getElementById('tbody-day');
+          var paginationDiv = document.getElementById('pagination-day');
+          if (!dayBody) return;
+          var dayData = uploadedCompareData;
+          if (!dayData || !dayData.topItems || dayData.topItems.length === 0) {
+              dayBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
+              if (paginationDiv) paginationDiv.innerHTML = '';
+              return;
+          }
 
-                var dailySalesStr = formatYen(item.dailySales);
-                var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
-                    ? item.ratio
-                    : (dayData.totalDailySales > 0 ? (item.dailySales / dayData.totalDailySales * 100) : null);
-                var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+          var items = dayData.topItems.slice(0, 50);
+          var totalPages = Math.ceil(items.length / window.rankItemsPerPage);
+          if (page < 1) page = 1;
+          if (page > totalPages) page = totalPages;
+          window.currentRankPageDay = page;
 
-                var bSales = baseSalesMap[item.name] || 0;
-                var salesDiffHtml = uploadedBaseData ? formatDiffYen(item.dailySales - bSales) : '-';
+          var startIdx = (page - 1) * window.rankItemsPerPage;
+          var endIdx = startIdx + window.rankItemsPerPage;
+          var pageItems = items.slice(startIdx, endIdx);
 
-                // 前年比（売上高の比較日比）
-                var compRatioVal = null;
-                if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
-                    compRatioVal = item.compRatio;
-                } else if (bSales > 0) {
-                    compRatioVal = (item.dailySales / bSales * 100);
-                }
-                var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
+          dayBody.innerHTML = pageItems.map(function(item, i) {
+              var idx = startIdx + i;
+              var currentRank = idx + 1;
+              var baseRank = baseRankMap[item.name];
+              var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '-') : '-';
+              var rankDiffHtml = uploadedBaseData ? formatRankDiff(baseRank, currentRank) : '-';
 
-                return '<tr>' +
-                    '<td class="col-rank" style="text-align:center;">' + currentRank + '</td>' +
-                    '<td class="col-name" style="font-weight:500;" title="' + escHtml(item.name) + '">' + escHtml(item.name) + '</td>' +
-                    '<td class="col-code" style="color:var(--text-muted);font-size:12px;">' + escHtml(item.code || '-') + '</td>' +
-                    '<td class="col-sales text-right" style="text-align:right;">' + dailySalesStr + '</td>' +
-                    '<td class="col-ratio text-right" style="text-align:right;">' + ratioStr + '</td>' +
-                    '<td class="col-other-rank text-center" style="text-align:center;">' + baseRankDisplay + '</td>' +
-                    '<td class="col-rank-diff text-center" style="text-align:center;">' + rankDiffHtml + '</td>' +
-                    '<td class="col-sales-diff text-right" style="text-align:right;">' + salesDiffHtml + '</td>' +
-                    '<td class="col-comp text-right" style="text-align:right;">' + compRatioHtml + '</td>' +
-                    '</tr>';
-            }).join('')
-            : BLANK_MSG_9;
-    }
+              var dailySalesStr = formatYen(item.dailySales);
+              var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
+                  ? item.ratio
+                  : (dayData.totalDailySales > 0 ? (item.dailySales / dayData.totalDailySales * 100) : null);
+              var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+
+              var bSales = baseSalesMap[item.name] || 0;
+              var salesDiffHtml = uploadedBaseData ? formatDiffYen(item.dailySales - bSales) : '-';
+
+              // 前年比（売上高の比較日比）
+              var compRatioVal = null;
+              if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+                  compRatioVal = item.compRatio;
+              } else if (bSales > 0) {
+                  compRatioVal = (item.dailySales / bSales * 100);
+              }
+              var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
+
+              return '<tr>' +
+                  '<td class="text-center">' + currentRank + '</td>' +
+                  '<td class="font-medium">' + escHtml(item.name) + '</td>' +
+                  '<td>' + (item.code || '') + '</td>' +
+                  '<td class="text-right">' + dailySalesStr + '</td>' +
+                  '<td class="text-right">' + ratioStr + '</td>' +
+                  '<td class="text-center">' + baseRankDisplay + '</td>' +
+                  '<td class="text-center">' + rankDiffHtml + '</td>' +
+                  '<td class="text-right">' + salesDiffHtml + '</td>' +
+                  '<td class="text-right">' + compRatioHtml + '</td>' +
+                  '</tr>';
+          }).join('');
+
+          renderPagination(totalPages, page, 'pagination-day', function(newPage) {
+              window.renderRankTableDay(newPage);
+          });
+      };
+      window.renderRankTableDay(window.currentRankPageDay);
 }
 
 // ==========================================================================
