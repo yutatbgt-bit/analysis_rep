@@ -1,7 +1,7 @@
 // ==========================================================================
 // グローバル変数・設定
 // ==========================================================================
-window.rankItemsPerPage = 10;
+window.rankItemsPerPage = 20;
 window.currentRankPageWeek = 1;
 window.currentRankPageDay = 1;
 
