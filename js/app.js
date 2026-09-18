@@ -873,7 +873,7 @@ function renderTables() {
                         '<td style="font-weight:500;">' + escHtml(d.name) + '</td>' +
                         '<td class="text-right">' + formatYen(d.bSales) + '</td>' +
                         '<td class="text-right">' + formatYen(d.cSales) + '</td>' +
-                        '<td class="text-right">' + formatDiffYen(d.diff) + '</td>' +
+                        '<td class="text-right" style="white-space:nowrap;">' + formatDiffYen(d.diff) + '</td>' +
                         '<td class="text-right">' + growthStr + '</td>' +
                         '</tr>';
                 }).join('')
@@ -888,7 +888,7 @@ function renderTables() {
                         '<td style="font-weight:500;">' + escHtml(d.name) + '</td>' +
                         '<td class="text-right">' + formatYen(d.bSales) + '</td>' +
                         '<td class="text-right">' + formatYen(d.cSales) + '</td>' +
-                        '<td class="text-right">' + formatDiffYen(d.diff) + '</td>' +
+                        '<td class="text-right" style="white-space:nowrap;">' + formatDiffYen(d.diff) + '</td>' +
                         '<td class="text-right">' + remainStr + '</td>' +
                         '</tr>';
                 }).join('')
