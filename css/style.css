@@ -615,8 +615,18 @@
             white-space: nowrap;
         }
 
-        #table-category th, #table-category td {
+                #table-category td {
             white-space: nowrap;
+        }
+        #table-category th {
+            white-space: normal;
+            font-size: 10px; /* ヘッダーを少し小さくして収める */
+            line-height: 1.2;
+            padding: 8px 4px; /* パディングを少し減らす */
+        }
+        #table-category td {
+            font-size: 11px; /* データ行も少し小さくする */
+            padding: 8px 4px;
         }
 
         /* 4. 単品売上実績比較 (Best15) テーブルの固定レイアウトと列幅 */
