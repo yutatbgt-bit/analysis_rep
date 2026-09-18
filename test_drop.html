@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Drop Test</title>
+<style>
+body { background: #1a1a2e; color: white; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+.zone { width: 300px; height: 150px; border: 3px dashed #38bdf8; border-radius: 12px; display:flex; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; transition:all 0.2s; }
+.zone.over { background:rgba(56,189,248,0.2); border-color:#7dd3fc; }
+#log { position:fixed; bottom:20px; left:20px; background:#0f172a; padding:12px; border-radius:8px; font-size:13px; max-width:500px; }
+</style>
+</head>
+<body>
+<label for="fi" class="zone" id="zone"
+  ondragenter="this.classList.add('over');log('dragenter')"
+  ondragover="event.preventDefault();this.classList.add('over');log('dragover')"
+  ondragleave="this.classList.remove('over');log('dragleave')"
+  ondrop="event.preventDefault();this.classList.remove('over');dropFile(event)">
+  <div>&#128196; ここにファイルをドロップ</div>
+  <div style="font-size:12px;opacity:0.7;margin-top:8px">または クリックして選択</div>
+</label>
+<input type="file" id="fi" style="display:none">
+<div id="log">ログ: 待機中...</div>
+<script>
+function log(msg) {
+  document.getElementById('log').textContent = 'ログ: ' + msg + ' @ ' + new Date().toLocaleTimeString();
+}
+function dropFile(e) {
+  var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) log('DROP成功: ' + f.name);
+  else log('DROP: ファイルなし');
+}
+document.getElementById('fi').addEventListener('change', function(e) {
+  var f = e.target.files && e.target.files[0];
+  if (f) log('クリック選択: ' + f.name);
+});
+</script>
+
+<script>
+// Edge/Chrome: http:// ページへのファイルドロップでナビゲーションしないよう阻止
+window.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+window.addEventListener('drop',     function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+</script>
+</body>
+</html>
