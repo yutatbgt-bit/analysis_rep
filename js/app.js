@@ -702,8 +702,8 @@ function renderCharts() {
                 label: '対比 (%)',
                 type: 'line',
                 data: ratioData,
-                backgroundColor: '#fbbf24',
-                borderColor: '#fbbf24',
+                backgroundColor: '#fcd34d',
+                borderColor: '#fcd34d',
                 borderWidth: 2,
                 pointRadius: 4,
                 yAxisID: 'y1',
@@ -713,8 +713,8 @@ function renderCharts() {
                 label: '比較基準 日商',
                 type: 'bar',
                 data: bSalesData,
-                backgroundColor: '#475569',
-                borderColor: '#64748b',
+                backgroundColor: '#94a3b8',
+                borderColor: '#94a3b8',
                 borderWidth: 1,
                 yAxisID: 'y'
             });
@@ -722,8 +722,8 @@ function renderCharts() {
                 label: '比較対象 日商',
                 type: 'bar',
                 data: cSalesData,
-                backgroundColor: '#60a5fa',
-                borderColor: '#3b82f6',
+                backgroundColor: '#93c5fd',
+                borderColor: '#93c5fd',
                 borderWidth: 1,
                 yAxisID: 'y'
             });
@@ -733,8 +733,8 @@ function renderCharts() {
                 label: '比較基準 日商',
                 type: 'bar',
                 data: bSalesOnly,
-                backgroundColor: '#475569',
-                borderColor: '#64748b',
+                backgroundColor: '#94a3b8',
+                borderColor: '#94a3b8',
                 borderWidth: 1,
                 yAxisID: 'y'
             });
@@ -744,8 +744,8 @@ function renderCharts() {
                 label: '比較対象 日商',
                 type: 'bar',
                 data: cSalesOnly,
-                backgroundColor: '#60a5fa',
-                borderColor: '#3b82f6',
+                backgroundColor: '#93c5fd',
+                borderColor: '#93c5fd',
                 borderWidth: 1,
                 yAxisID: 'y'
             });
@@ -789,7 +789,7 @@ function renderCharts() {
             var r = uploadedCompareData ? c.cRatio : c.bRatio;
             return parseFloat(r.toFixed(1));
         });
-        var pieColors = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
+        var pieColors = ["#93c5fd", "#6ee7b7", "#fcd34d", "#f9a8d4", "#c4b5fd", "#67e8f9", "#fdba74", "#bef264"];
 
         new Chart(pieCtx, {
             type: 'doughnut',
@@ -799,14 +799,14 @@ function renderCharts() {
                     data: pieValues,
                     backgroundColor: pieColors,
                     borderColor: isLight ? '#ffffff' : '#1a1d27',
-                    borderWidth: 2
-                }]
+                    borderWidth: 0, offset: 5, hoverOffset: 30, radius: '70%' }]
             },
             options: {
+                layout: { padding: 10 },
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'right', labels: { color: textMuted, font: { size: 11 } } },
+                    legend: { position: 'bottom', labels: { color: textMuted, font: { size: 11 }, boxBorderWidth: 0 } },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.parsed + '%'; }
@@ -1458,3 +1458,11 @@ function restorePersistedData() {
         nextBtn.onclick = function() { onClickCallback(currentPage + 1); };
         container.appendChild(nextBtn);
     }
+
+
+
+
+
+
+
+
