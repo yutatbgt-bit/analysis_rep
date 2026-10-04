@@ -219,7 +219,9 @@
             var unitPrice = parseNumeric(row[colMap.unitPrice]);
 
             var catFromCol = colMap.category !== undefined ? toHalfWidth(String(row[colMap.category] || '')) : '';
-            var resolvedCategory = catFromCol || getProductCategory(nameCell, firstCell);
+            var rawName = String(row[colMap.name] || '');
+            var rawCode = String(row[colMap.code] || '');
+            var resolvedCategory = catFromCol || getProductCategory(rawName, rawCode);
 
             if (dailySales > 0 || periodSales > 0) {
                 items.push({
