@@ -765,7 +765,7 @@ function renderCharts() {
                     y: {
                         ticks: {
                             color: textMuted,
-                            callback: function(v) { return '¥' + (v >= 10000 ? (v / 10000).toFixed(0) + '万' : v.toLocaleString()); }
+                            callback: function(v) { return (v / 1000).toLocaleString(); }
                         },
                         grid: { color: gridColor }
                     },
@@ -819,6 +819,7 @@ function renderCharts() {
 }
 
 function renderTables() {
+    var BLANK_MSG_6 = '<tr><td colspan="6" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
     var BLANK_MSG_8 = '<tr><td colspan="8" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
     var BLANK_MSG_9 = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
 
@@ -1277,17 +1278,11 @@ function renderCommentary() {
 // 引数を type のみにしてHTML属性内の日本語文字列を排除
 // ==========================================================================
 function handleInlineDrop(event, type) {
-    var dt = event.dataTransfer;
-    if (!dt || !dt.files || dt.files.length === 0) {
-        console.warn('[handleInlineDrop] dataTransfer.files が空です');
-        return;
+    // JS側 (setupDropZone) でイベントを処理しているため、インライン属性からの二重発火を防ぐ
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+        event.stopPropagation();
     }
-    var file = dt.files[0];
-    console.log('[handleInlineDrop] ファイルドロップ検出:', file.name, 'type:', type);
-    var pillId  = type === 'base' ? 'file-name-base' : 'file-name-compare';
-    var prefix  = type === 'base' ? '基準' : '比較';
-    updateFilePill(pillId, file.name, prefix);
-    handleFileUpload(file, type);
 }
 
 function handleFileUpload(file, type) {

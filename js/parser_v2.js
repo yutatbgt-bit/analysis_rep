@@ -185,6 +185,18 @@
 
         var startDataRow = isSubHeader ? (headerRowIndex + 2) : (headerRowIndex + 1);
 
+        // ユーザー指定により、D8セル（実績合計）を構成比の分母として強制取得する
+        if (rows.length > 7 && rows[7]) {
+            if (rows[7].length > 3) {
+                var d8Value = parseNumeric(rows[7][3]);
+                if (d8Value > 0) totalPeriodSales = d8Value;
+            }
+            if (rows[7].length > 2) {
+                var c8Value = parseNumeric(rows[7][2]);
+                if (c8Value > 0) totalDailySales = c8Value;
+            }
+        }
+
         // 3. データ行の走査・合計行の抽出・Top商品リスト
         var items = [];
         var categoryMap = {};
@@ -198,13 +210,13 @@
 
             // 合計行の検出
             if (firstCell.indexOf('合計') !== -1 || nameCell.indexOf('合計') !== -1) {
-                totalDailySales = parseNumeric(row[colMap.dailySales]);
-                totalPeriodSales = parseNumeric(row[colMap.totalSales]) || totalDailySales;
+                if (!totalDailySales) totalDailySales = parseNumeric(row[colMap.dailySales]);
+                if (!totalPeriodSales) totalPeriodSales = parseNumeric(row[colMap.totalSales]) || totalDailySales;
                 continue;
             }
 
-            // 商品コードが空（小計行など）や、不要行をスキップ（売上ダッシュボードのロジックと一致させる）
-            if (!firstCell || firstCell.indexOf('対象') !== -1 || !nameCell || nameCell === '0' || nameCell.indexOf('商品コード') !== -1 || nameCell.indexOf('品名') !== -1) continue;
+            // 不要行をスキップ（商品コードが空でも、商品名がある行は救済する）
+            if (firstCell.indexOf('対象') !== -1 || !nameCell || nameCell === '0' || nameCell.indexOf('商品コード') !== -1 || nameCell.indexOf('品名') !== -1 || nameCell.indexOf('小計') !== -1) continue;
 
             var dailySales = parseNumeric(row[colMap.dailySales]);
             var periodSales = parseNumeric(row[colMap.totalSales]) || dailySales;
@@ -249,8 +261,8 @@
             totalDailySales = sumItemDailySales;
         }
 
-        // 単品の構成比補完（全単品の合計金額を分母とする）
-        var itemDenominator = sumItemDailySales > 0 ? sumItemDailySales : totalDailySales;
+        // 単品の構成比補完（総合計行の金額を優先して分母とする）
+        var itemDenominator = totalDailySales > 0 ? totalDailySales : sumItemDailySales;
         if (itemDenominator > 0) {
             items.forEach(function(it) {
                 if (it.ratio === null || it.ratio === undefined || isNaN(it.ratio)) {
@@ -271,10 +283,10 @@
             categoryPeriodMap[cat] += item.periodSales;
         });
 
-        // カテゴリ構成比の算出（ダッシュボード側の計算ロジックに合わせ、分母・分子ともに期間売上を使用）
+        // カテゴリ構成比の算出（総合計行の期間売上を優先して分母とする）
         var sumItemPeriodSales = 0;
         items.forEach(function(it) { sumItemPeriodSales += it.periodSales; });
-        var catPeriodDenominator = sumItemPeriodSales > 0 ? sumItemPeriodSales : totalPeriodSales;
+        var catPeriodDenominator = totalPeriodSales > 0 ? totalPeriodSales : sumItemPeriodSales;
         
         var categories = [];
         for (var catName in categoryMap) {
