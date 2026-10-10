@@ -111,7 +111,7 @@
         var isSubHeader = false;
         if (rowSub.length > 0) {
             var subJoined = rowSub.join(' ');
-            if (subJoined.indexOf('日商') !== -1 || subJoined.indexOf('比較日比') !== -1 || subJoined.indexOf('構成比') !== -1) {
+            if (subJoined.indexOf('実績') !== -1 || subJoined.indexOf('比較日比') !== -1 || subJoined.indexOf('構成比') !== -1) {
                 isSubHeader = true;
             }
         }
@@ -144,16 +144,7 @@
                      (colMap.compRatio === undefined && (hCombined.indexOf('前年比') !== -1 || hCombined.indexOf('対比') !== -1))) {
                 colMap.compRatio = c;
             }
-            // 売上日商
-            else if (hCombined.indexOf('日商') !== -1 || (hCombined.indexOf('売上') !== -1 && hCombined.indexOf('日') !== -1)) {
-                if (colMap.dailySales === undefined || hCombined.indexOf('売上') !== -1) {
-                    colMap.dailySales = c;
-                }
-            }
-            // 売上累計 / 売上高実績
-            else if (hCombined.indexOf('売上') !== -1 && (hCombined.indexOf('累計') !== -1 || hCombined.indexOf('実績') !== -1)) {
-                colMap.totalSales = c;
-            }
+
             // 構成比
             else if (hCombined.indexOf('構成比') !== -1 || hCombined.indexOf('売上比') !== -1) {
                 if (colMap.ratio === undefined || hCombined.indexOf('売上') !== -1) {
@@ -177,7 +168,7 @@
         // デフォルト列インデックス（POS標準帳票・d3968cd_analyzer.py 準拠）
         if (colMap.code === undefined) colMap.code = 0;
         if (colMap.name === undefined) colMap.name = 1;
-        if (colMap.dailySales === undefined) colMap.dailySales = 2;
+        if (colMap.dailySales === undefined) colMap.dailySales = 3;
         if (colMap.totalSales === undefined) colMap.totalSales = 3;
         if (colMap.ratio === undefined) colMap.ratio = 4;
         if (colMap.budgetRatio === undefined) colMap.budgetRatio = 5;
@@ -185,15 +176,14 @@
 
         var startDataRow = isSubHeader ? (headerRowIndex + 2) : (headerRowIndex + 1);
 
-        // ユーザー指定により、D8セル（実績合計）を構成比の分母として強制取得する
+        // ユーザー指定により、D8セル（実績合計）を強制取得する
         if (rows.length > 7 && rows[7]) {
             if (rows[7].length > 3) {
                 var d8Value = parseNumeric(rows[7][3]);
-                if (d8Value > 0) totalPeriodSales = d8Value;
-            }
-            if (rows[7].length > 2) {
-                var c8Value = parseNumeric(rows[7][2]);
-                if (c8Value > 0) totalDailySales = c8Value;
+                if (d8Value > 0) {
+                    totalPeriodSales = d8Value;
+                    totalDailySales = d8Value;
+                }
             }
         }
 
@@ -221,7 +211,7 @@
             var dailySales = parseNumeric(row[colMap.dailySales]);
             var periodSales = parseNumeric(row[colMap.totalSales]) || dailySales;
             // POS CSVで列3が売上高の場合の補完
-            if (dailySales === 0 && periodSales > 0 && colMap.dailySales === 2) {
+            if (dailySales === 0 && periodSales > 0 && (colMap.dailySales === 3 || colMap.dailySales === 2)) {
                 dailySales = periodSales;
             }
 
@@ -253,7 +243,7 @@
             }
         }
 
-        // 全単品の合計日商を算出（構成比算出の確実な分母とする）
+        // 全単品の合計実績を算出（構成比算出の確実な分母とする）
         var sumItemDailySales = 0;
         items.forEach(function(it) { sumItemDailySales += it.dailySales; });
 
@@ -271,7 +261,7 @@
             });
         }
 
-        // カテゴリ別集計（日商は表示用、期間売上はダッシュボード互換の構成比計算用）
+        // カテゴリ別集計（実績は表示用、期間売上はダッシュボード互換の構成比計算用）
         var categoryPeriodMap = {};
         items.forEach(function(item) {
             var cat = item.category || 'その他';
