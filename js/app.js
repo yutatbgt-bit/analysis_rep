@@ -882,9 +882,6 @@ function renderTables() {
         });
         window.risingItems = diffs.filter(function(d) { return d.diff > 0; }).sort(function(a,b){return b.diff-a.diff;}).slice(0,50);
         window.fallingItems = diffs.filter(function(d) { return d.diff < 0; }).sort(function(a,b){return a.diff-b.diff;}).slice(0,50);
-
-        if (typeof window.renderRankTableRising === 'function') window.renderRankTableRising(1);
-        if (typeof window.renderRankTableFalling === 'function') window.renderRankTableFalling(1);
     }
 
     // 3. 単品ランキングテーブル Best50 (実績ベース)
@@ -950,6 +947,7 @@ function renderTables() {
             renderPagination(totalPages, page, 'pagination-rising', window.renderRankTableRising);
         }
     };
+    window.renderRankTableRising(window.currentRankPageRising || 1);
 
     window.renderRankTableFalling = function(page) {
         var fallingBody = document.getElementById('tbody-falling');
@@ -988,6 +986,7 @@ function renderTables() {
             renderPagination(totalPages, page, 'pagination-falling', window.renderRankTableFalling);
         }
     };
+    window.renderRankTableFalling(window.currentRankPageFalling || 1);
 
     // 比較基準テーブル (9列: 順位/商品名/商品コード/実績/構成比/比較順位/順位変動/実績差分/前年比)
       window.renderRankTableWeek = function(page) {
