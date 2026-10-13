@@ -33,7 +33,9 @@ analysis_rep/
 ├── css/
 │   └── style.css               # スタイルシート（テーマ、アップロードUI、アイコンボタン等）
 ├── js/
-│   └── app.js                  # アプリケーションロジック（テーマ、全画面、D&D、リセット等）
+│   ├── app.js                  # アプリケーションロジック（テーマ、全画面、D&D、リセット等）
+│   ├── category_map.js         # 商品マスタ・カテゴリ分類定義
+│   └── parser_v2.js            # 売上データ（Excel/CSV）解析パーサー
 ├── vendor/
 │   ├── chart.umd.min.js        # ローカル Chart.js ライブラリ
 │   └── xlsx.full.min.js        # ローカル SheetJS (Excel/CSV) ライブラリ
