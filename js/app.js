@@ -690,15 +690,36 @@ function renderCharts() {
     var textMuted = isLight ? '#64748b' : '#94a3b8';
     var gridColor = isLight ? 'rgba(0,0,0,0.06)' : '#2d3348';
 
+    // 対比軸(y1)は区分線形スケール: 0〜100%を5区間(目盛6本: 0,20,...,100)、100〜250%を1区間に圧縮する。
+    // 100%前後の差を読み取りやすくするため。Chart.jsは区分線形軸を持たないので、
+    // 描画値を軸座標へ変換し、目盛ラベルとツールチップで実値へ戻して表示する。
+    var RATIO_LOWER_MAX = 100;      // 下段区間の上限(%)
+    var RATIO_LOWER_STEP = 20;      // 下段区間の目盛間隔(%)
+    var RATIO_UPPER_MAX = 250;      // 上段区間の上限(%)
+    var RATIO_LOWER_SEGMENTS = RATIO_LOWER_MAX / RATIO_LOWER_STEP; // = 5
+    var RATIO_AXIS_MAX = RATIO_LOWER_SEGMENTS + 1;                 // 上段は1区間
+
+    function ratioToAxis(percent) {
+        var clamped = Math.min(Math.max(percent, 0), RATIO_UPPER_MAX);
+        if (clamped <= RATIO_LOWER_MAX) return clamped / RATIO_LOWER_STEP;
+        return RATIO_LOWER_SEGMENTS + (clamped - RATIO_LOWER_MAX) / (RATIO_UPPER_MAX - RATIO_LOWER_MAX);
+    }
+
+    function axisToRatio(axisValue) {
+        if (axisValue <= RATIO_LOWER_SEGMENTS) return axisValue * RATIO_LOWER_STEP;
+        return RATIO_LOWER_MAX + (axisValue - RATIO_LOWER_SEGMENTS) * (RATIO_UPPER_MAX - RATIO_LOWER_MAX);
+    }
+
     // 1. カテゴリ別棒グラフ（比較対比）
     if (barCanvas) {
         var barCtx = barCanvas.getContext('2d');
         var datasets = [];
 
         if (uploadedBaseData && uploadedCompareData) {
-            var ratioData = topCats.map(function(c) {
+            var actualRatios = topCats.map(function(c) {
                 return c.compRatio !== null ? parseFloat(c.compRatio.toFixed(1)) : 100.0;
             });
+            var ratioData = actualRatios.map(ratioToAxis);
             var bSalesData = topCats.map(function(c) { return c.bSales; });
             var cSalesData = topCats.map(function(c) { return c.cSales; });
 
@@ -706,6 +727,7 @@ function renderCharts() {
                 label: '対比 (%)',
                 type: 'line',
                 data: ratioData,
+                actualRatios: actualRatios, // ツールチップで実値(250%超も含む)を表示するために保持
                 backgroundColor: '#fcd34d',
                 borderColor: '#fcd34d',
                 borderWidth: 2,
@@ -764,6 +786,19 @@ function renderCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var ds = context.dataset;
+                                if (ds.yAxisID === 'y1' && Array.isArray(ds.actualRatios)) {
+                                    return ds.label + ': ' + ds.actualRatios[context.dataIndex] + '%';
+                                }
+                                return ds.label + ': ' + Number(context.parsed.y).toLocaleString();
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: { ticks: { color: textMuted, maxRotation: 45, minRotation: 45 }, grid: { display: false } },
                     y: {
@@ -777,7 +812,13 @@ function renderCharts() {
                         position: 'right',
                         display: (uploadedBaseData && uploadedCompareData) ? true : false,
                         grid: { display: false },
-                        ticks: { color: textMuted, callback: function(v) { return v + '%'; } }
+                        min: 0,
+                        max: RATIO_AXIS_MAX,
+                        ticks: {
+                            color: textMuted,
+                            stepSize: 1,
+                            callback: function(v) { return axisToRatio(v) + '%'; }
+                        }
                     }
                 }
             }
