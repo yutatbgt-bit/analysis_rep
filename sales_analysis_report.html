@@ -47,7 +47,9 @@
                         </label>
                         <input type="file" id="file-input-base" accept=".csv, .xlsx, .xls" style="display: none;"
                             aria-label="基準データファイル選択">
-                        <span id="file-name-base" class="file-pill pill-base hidden">基準: 未読込</span>
+                        <div class="file-pill-group" id="file-pill-group-base">
+                            <button type="button" id="file-name-base" class="file-pill pill-base hidden" title="クリックして基準データを削除">基準: 未読込</button>
+                        </div>
                     </div>
 
                     <!-- 比較データ -->
@@ -69,7 +71,9 @@
                         </label>
                         <input type="file" id="file-input-compare" accept=".csv, .xlsx, .xls" style="display: none;"
                             aria-label="比較データファイル選択">
-                        <span id="file-name-compare" class="file-pill pill-compare hidden">比較: 未読込</span>
+                        <div class="file-pill-group" id="file-pill-group-compare">
+                            <button type="button" id="file-name-compare" class="file-pill pill-compare hidden" title="クリックして比較データを削除">比較: 未読込</button>
+                        </div>
                     </div>
 
                     <div class="header-actions">
@@ -360,7 +364,7 @@
     <!-- スクリプト -->
     <script src="js/category_map.js?v=20261005_master_sync"></script>
     <script src="js/parser_v2.js?v=20261010_use_col_D_v3"></script>
-    <script src="js/app.js?v=20261010_pagination_fix_v3"></script>
+    <script src="js/app.js?v=20261024_direct_delete"></script>
 </body>
 
 </html>

@@ -71,6 +71,21 @@ var StorageManager = (function() {
                 }
             });
         },
+        remove: function(key) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, 'readwrite');
+                    var store = tx.objectStore(STORE_NAME);
+                    var req = store.delete(key);
+                    req.onsuccess = function() { resolve(); };
+                    req.onerror = function() { reject(req.error); };
+                });
+            }).catch(function() {
+                try {
+                    localStorage.removeItem('sa_rep_' + key);
+                } catch (e) {}
+            });
+        },
         clearAll: function() {
             return openDB().then(function(db) {
                 return new Promise(function(resolve, reject) {
@@ -235,11 +250,13 @@ function resetUploadData() {
         pillBase.textContent = '基準: 未読込';
         pillBase.title = '';
         pillBase.classList.add('hidden');
+        pillBase.onclick = null;
     }
     if (pillCompare) {
         pillCompare.textContent = '比較: 未読込';
         pillCompare.title = '';
         pillCompare.classList.add('hidden');
+        pillCompare.onclick = null;
     }
 
     var dropBase = document.getElementById('drop-zone-base');
@@ -338,6 +355,8 @@ function resetUploadData() {
 
     uploadedBaseData = null;
     uploadedCompareData = null;
+    fileMetadata.base = null;
+    fileMetadata.compare = null;
     isDashboardCleared = true;
 
     // ストレージから永続化データを完全消去
@@ -511,16 +530,68 @@ function resetUploadData() {
 
         
 // ==========================================================================
+// ファイルメタデータ保持・ワンクリック個別直接削除マネージャー
 // ==========================================================================
-// ファイルピル（アップロード済み表示）更新ユーティリティ
-// ==========================================================================
-function updateFilePill(pillId, fileName, prefix) {
+var fileMetadata = {
+    base: null,
+    compare: null
+};
+
+function updateFilePill(pillId, fileName, prefix, slot) {
     var pill = document.getElementById(pillId);
     if (!pill) return;
-    var shortName = fileName.length > 22 ? fileName.substring(0, 20) + '…' : fileName;
+    var targetSlot = slot || (pillId.indexOf('base') !== -1 ? 'base' : 'compare');
+    var shortName = fileName.length > 20 ? fileName.substring(0, 18) + '…' : fileName;
+
+    // XSS対策: textContent で安全にファイル名を描画
     pill.textContent = prefix + ': ' + shortName;
-    pill.title = fileName;
+    pill.title = 'クリックしてこのファイル（' + fileName + '）を削除';
     pill.classList.remove('hidden');
+
+    // ピルをワンクリックするだけで即座に削除
+    pill.onclick = function() {
+        clearSlot(targetSlot);
+    };
+}
+
+function clearSlot(slot) {
+    var isBase = (slot === 'base');
+    var slotName = isBase ? '基準' : '比較';
+    var key = isBase ? 'base_data' : 'compare_data';
+
+    if (isBase) {
+        uploadedBaseData = null;
+        fileMetadata.base = null;
+    } else {
+        uploadedCompareData = null;
+        fileMetadata.compare = null;
+    }
+
+    if (StorageManager && typeof StorageManager.remove === 'function') {
+        StorageManager.remove(key);
+    } else if (StorageManager) {
+        StorageManager.set(key, null);
+    }
+
+    var inputEl = document.getElementById(isBase ? 'file-input-base' : 'file-input-compare');
+    if (inputEl) inputEl.value = '';
+
+    var pillEl = document.getElementById(isBase ? 'file-name-base' : 'file-name-compare');
+    if (pillEl) {
+        pillEl.textContent = slotName + ': 未読込';
+        pillEl.title = '';
+        pillEl.classList.add('hidden');
+        pillEl.onclick = null;
+    }
+
+    // 両方空になった場合は全リセット、片方残っていれば再計算描画
+    if (!uploadedBaseData && !uploadedCompareData) {
+        resetUploadData();
+    } else {
+        renderDashboard();
+    }
+
+    showToast(slotName + 'データを削除しました。', 'info');
 }
 
 // ==========================================================================
@@ -572,45 +643,57 @@ function renderDashboard() {
     isDashboardCleared = false;
 
     // 1. サマリーカードの更新
-    if (uploadedBaseData) {
-        var cardWeek = document.getElementById('card-week-avg');
-        if (cardWeek) {
-            var val = cardWeek.querySelector('.card-value');
-            var sub = cardWeek.querySelector('.card-subtext');
-            if (val) val.textContent = formatYen(uploadedBaseData.totalDailySales);
-            if (sub) sub.textContent = uploadedBaseData.periodStr || '期間未定';
+    var cardWeek = document.getElementById('card-week-avg');
+    if (cardWeek) {
+        var valW = cardWeek.querySelector('.card-value');
+        var subW = cardWeek.querySelector('.card-subtext');
+        if (uploadedBaseData) {
+            if (valW) valW.textContent = formatYen(uploadedBaseData.totalDailySales);
+            if (subW) subW.textContent = uploadedBaseData.periodStr || '期間未定';
+        } else {
+            if (valW) valW.textContent = '¥ -';
+            if (subW) subW.textContent = '基準データ未読込';
         }
     }
 
-    if (uploadedCompareData) {
-        var cardDay = document.getElementById('card-day-sales');
-        if (cardDay) {
-            var val = cardDay.querySelector('.card-value');
-            var sub = cardDay.querySelector('.card-subtext');
-            if (val) val.textContent = formatYen(uploadedCompareData.totalDailySales);
-            if (sub) sub.textContent = uploadedCompareData.periodStr || '期間未定';
+    var cardDay = document.getElementById('card-day-sales');
+    if (cardDay) {
+        var valD = cardDay.querySelector('.card-value');
+        var subD = cardDay.querySelector('.card-subtext');
+        if (uploadedCompareData) {
+            if (valD) valD.textContent = formatYen(uploadedCompareData.totalDailySales);
+            if (subD) subD.textContent = uploadedCompareData.periodStr || '期間未定';
+        } else {
+            if (valD) valD.textContent = '¥ -';
+            if (subD) subD.textContent = '比較データ未読込';
         }
     }
 
-    if (uploadedBaseData && uploadedCompareData) {
-        var cardComp = document.getElementById('card-comparison');
-        if (cardComp) {
-            var val = cardComp.querySelector('.card-value');
-            var sub = cardComp.querySelector('.card-subtext');
+    var cardComp = document.getElementById('card-comparison');
+    if (cardComp) {
+        var valC = cardComp.querySelector('.card-value');
+        var subC = cardComp.querySelector('.card-subtext');
+        if (uploadedBaseData && uploadedCompareData) {
             var bSales = uploadedBaseData.totalDailySales;
             var cSales = uploadedCompareData.totalDailySales;
             var ratio = bSales > 0 ? (cSales / bSales * 100) : 0;
             var diff = cSales - bSales;
 
-            if (val) {
-                val.textContent = ratio.toFixed(2) + '%';
-                val.style.color = ratio >= 100 ? 'var(--accent-green)' : 'var(--accent-red)';
+            if (valC) {
+                valC.textContent = ratio.toFixed(2) + '%';
+                valC.style.color = ratio >= 100 ? 'var(--accent-green)' : 'var(--accent-red)';
             }
-            if (sub) {
+            if (subC) {
                 var badgeClass = diff >= 0 ? 'badge-up' : 'badge-down';
                 var sign = diff >= 0 ? '+' : '-';
-                sub.innerHTML = '差額: <span class="' + badgeClass + '">' + sign + formatYen(Math.abs(diff)) + '</span>';
+                subC.innerHTML = '差額: <span class="' + badgeClass + '">' + sign + formatYen(Math.abs(diff)) + '</span>';
             }
+        } else {
+            if (valC) {
+                valC.textContent = '- %';
+                valC.style.color = 'var(--text-muted)';
+            }
+            if (subC) subC.textContent = '差額: -';
         }
     }
 
@@ -1386,6 +1469,7 @@ function handleFileUpload(file, type) {
         var key = type === 'base' ? 'base_data' : 'compare_data';
         var payload = {
             fileName: file.name,
+            fileSize: file.size,
             data: parsedData,
             savedAt: Date.now()
         };
@@ -1395,6 +1479,18 @@ function handleFileUpload(file, type) {
         } else {
             uploadedCompareData = parsedData;
         }
+
+        fileMetadata[type] = {
+            fileName: file.name,
+            fileSize: file.size,
+            itemCount: parsedData.itemCount,
+            totalSales: parsedData.totalDailySales,
+            periodStr: parsedData.periodStr
+        };
+
+        var pillId = type === 'base' ? 'file-name-base' : 'file-name-compare';
+        var prefix = type === 'base' ? '基準' : '比較';
+        updateFilePill(pillId, file.name, prefix, type);
 
         // ストレージへ非同期で永続化保存
         StorageManager.set(key, payload);
@@ -1419,7 +1515,6 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
         fileInput.addEventListener('change', function(e) {
             var file = e.target.files && e.target.files[0];
             if (file) {
-                updateFilePill(pillId, file.name, prefix);
                 handleFileUpload(file, type);
                 fileInput.value = ''; // 同じファイルを再選択可能に
             }
@@ -1451,7 +1546,6 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
             var dt = e.dataTransfer;
             var file = dt && dt.files && dt.files[0];
             if (file) {
-                updateFilePill(pillId, file.name, prefix);
                 handleFileUpload(file, type);
             }
         });
@@ -1488,13 +1582,27 @@ function restorePersistedData() {
 
         if (basePayload && basePayload.data) {
             uploadedBaseData = basePayload.data;
-            updateFilePill('file-name-base', basePayload.fileName || '基準データ', '基準');
+            fileMetadata.base = {
+                fileName: basePayload.fileName || '基準データ',
+                fileSize: basePayload.fileSize || 0,
+                itemCount: basePayload.data.itemCount,
+                totalSales: basePayload.data.totalDailySales,
+                periodStr: basePayload.data.periodStr
+            };
+            updateFilePill('file-name-base', fileMetadata.base.fileName, '基準', 'base');
             restoredAny = true;
         }
 
         if (compPayload && compPayload.data) {
             uploadedCompareData = compPayload.data;
-            updateFilePill('file-name-compare', compPayload.fileName || '比較データ', '比較');
+            fileMetadata.compare = {
+                fileName: compPayload.fileName || '比較データ',
+                fileSize: compPayload.fileSize || 0,
+                itemCount: compPayload.data.itemCount,
+                totalSales: compPayload.data.totalDailySales,
+                periodStr: compPayload.data.periodStr
+            };
+            updateFilePill('file-name-compare', fileMetadata.compare.fileName, '比較', 'compare');
             restoredAny = true;
         }
 
