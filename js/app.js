@@ -733,7 +733,7 @@ function getIntegratedCategories() {
         item.salesDiff = item.cSales - item.bSales;
         item.ratioDiff = item.cRatio - item.bRatio;
         item.displaySales = item.cSales > 0 ? item.cSales : item.bSales;
-        if (item.bSales > 0 && item.cSales > 0) {
+        if (item.bSales > 0) {
             item.compRatio = (item.cSales / item.bSales * 100);
         } else {
             item.compRatio = null;
@@ -1150,12 +1150,15 @@ function renderTables() {
               var cSales = compareSalesMap[item.name] || 0;
               var salesDiffHtml = uploadedCompareData ? formatDiffYen(cSales - item.dailySales) : '-';
 
-              // 前年比（比較対象 / 基準）
+              // 前年比・対比比率（比較対象 / 基準）
+              // 比較データが読み込まれている場合は、実際のアップロード実績値から算出
               var compRatioVal = null;
-              if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+              if (uploadedCompareData) {
+                  if (item.dailySales > 0) {
+                      compRatioVal = (cSales / item.dailySales * 100);
+                  }
+              } else if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
                   compRatioVal = item.compRatio;
-              } else if (item.dailySales > 0 && cSales > 0) {
-                  compRatioVal = (cSales / item.dailySales * 100);
               }
               var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
 
@@ -1215,12 +1218,15 @@ function renderTables() {
               var bSales = baseSalesMap[item.name] || 0;
               var salesDiffHtml = uploadedBaseData ? formatDiffYen(item.dailySales - bSales) : '-';
 
-              // 前年比（売上高の比較日比）
+              // 前年比・対比比率（売上高の対比比率: 対象 / 基準）
+              // 基準データが読み込まれている場合は、実際のアップロード実績値から算出
               var compRatioVal = null;
-              if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+              if (uploadedBaseData) {
+                  if (bSales > 0) {
+                      compRatioVal = (item.dailySales / bSales * 100);
+                  }
+              } else if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
                   compRatioVal = item.compRatio;
-              } else if (bSales > 0) {
-                  compRatioVal = (item.dailySales / bSales * 100);
               }
               var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
 
