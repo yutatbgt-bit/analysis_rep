@@ -31,7 +31,8 @@
                     <!-- 基準データ -->
                     <div class="upload-group">
                         <label for="file-input-base" class="file-drop-zone drop-zone-base" id="drop-zone-base"
-                            role="button" tabindex="0" aria-label="基準データをアップロード"
+                            role="button" tabindex="0" aria-label="基準データをアップロード（CSV / Excel対応）"
+                            title="CSVまたはExcelファイル（.csv, .xlsx, .xls等）をドロップまたはクリックして選択"
                             ondragenter="this.classList.add('drag-over')"
                             ondragover="event.preventDefault();this.classList.add('drag-over')"
                             ondragleave="this.classList.remove('drag-over')"
@@ -43,10 +44,10 @@
                                 <polyline points="17 8 12 3 7 8"></polyline>
                                 <line x1="12" y1="3" x2="12" y2="15"></line>
                             </svg>
-                            <p>基準データアップロード</p>
+                            <p>基準データ (CSV/Excel)</p>
                         </label>
-                        <input type="file" id="file-input-base" accept=".csv, .xlsx, .xls" style="display: none;"
-                            aria-label="基準データファイル選択">
+                        <input type="file" id="file-input-base" accept=".csv, .xlsx, .xls, .xlsm, .xlsb" style="display: none;"
+                            aria-label="基準データファイル選択（CSVまたはExcel）">
                         <div class="file-pill-group" id="file-pill-group-base">
                             <button type="button" id="file-name-base" class="file-pill pill-base hidden" title="クリックして基準データを削除">基準: 未読込</button>
                         </div>
@@ -55,7 +56,8 @@
                     <!-- 比較データ -->
                     <div class="upload-group">
                         <label for="file-input-compare" class="file-drop-zone drop-zone-compare" id="drop-zone-compare"
-                            role="button" tabindex="0" aria-label="比較データをアップロード"
+                            role="button" tabindex="0" aria-label="比較データをアップロード（CSV / Excel対応）"
+                            title="CSVまたはExcelファイル（.csv, .xlsx, .xls等）をドロップまたはクリックして選択"
                             ondragenter="this.classList.add('drag-over')"
                             ondragover="event.preventDefault();this.classList.add('drag-over')"
                             ondragleave="this.classList.remove('drag-over')"
@@ -67,10 +69,10 @@
                                 <polyline points="17 8 12 3 7 8"></polyline>
                                 <line x1="12" y1="3" x2="12" y2="15"></line>
                             </svg>
-                            <p>比較データアップロード</p>
+                            <p>比較データ (CSV/Excel)</p>
                         </label>
-                        <input type="file" id="file-input-compare" accept=".csv, .xlsx, .xls" style="display: none;"
-                            aria-label="比較データファイル選択">
+                        <input type="file" id="file-input-compare" accept=".csv, .xlsx, .xls, .xlsm, .xlsb" style="display: none;"
+                            aria-label="比較データファイル選択（CSVまたはExcel）">
                         <div class="file-pill-group" id="file-pill-group-compare">
                             <button type="button" id="file-name-compare" class="file-pill pill-compare hidden" title="クリックして比較データを削除">比較: 未読込</button>
                         </div>
@@ -363,8 +365,8 @@
 
     <!-- スクリプト -->
     <script src="js/category_map.js?v=20261005_master_sync"></script>
-    <script src="js/parser_v2.js?v=20261010_use_col_D_v3"></script>
-    <script src="js/app.js?v=20261024_comp_ratio_fix"></script>
+    <script src="js/parser_v2.js?v=20261027_excel_val_only"></script>
+    <script src="js/app.js?v=20261027_excel_val_only"></script>
 </body>
 
 </html>

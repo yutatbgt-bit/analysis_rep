@@ -305,7 +305,7 @@
     }
 
     /**
-     * アップロードされたファイルを非同期に解析
+     * アップロードされたファイルを非同期に解析（CSVおよびExcelに対応、Excelは値のみ読み込み）
      * @param {File} file
      * @returns {Promise<Object>}
      */
@@ -315,6 +315,19 @@
                 return reject(new Error('ファイルが指定されていません。'));
             }
 
+            var fileName = file.name || '';
+            var ext = fileName.slice((fileName.lastIndexOf('.') - 1 >>> 0) + 2).toLowerCase();
+            var validExtensions = ['csv', 'xlsx', 'xls', 'xlsm', 'xlsb'];
+            if (validExtensions.indexOf(ext) === -1) {
+                return reject(new Error('サポートされていないファイル形式です。CSVまたはExcelファイル（.xlsx, .xls等）を指定してください。'));
+            }
+
+            // 巨大ファイル（例: 50MB超）のメモリ枯渇防止
+            var MAX_FILE_SIZE = 50 * 1024 * 1024;
+            if (file.size > MAX_FILE_SIZE) {
+                return reject(new Error('ファイルサイズが上限（50MB）を超えています。'));
+            }
+
             var reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -322,7 +335,7 @@
                     var data = new Uint8Array(buffer);
                     var workbook;
 
-                    var isCSV = file.name.toLowerCase().endsWith('.csv');
+                    var isCSV = (ext === 'csv');
                     if (isCSV) {
                         var isUtf8 = true;
                         try {
@@ -335,18 +348,26 @@
 
                         if (isUtf8) {
                             var utf8Str = new TextDecoder('utf-8').decode(data);
-                            workbook = XLSX.read(utf8Str, { type: 'string' });
+                            workbook = XLSX.read(utf8Str, { type: 'string', raw: true });
                         } else {
                             try {
                                 var sjisDecoder = new TextDecoder('shift-jis');
                                 var sjisStr = sjisDecoder.decode(data);
-                                workbook = XLSX.read(sjisStr, { type: 'string' });
+                                workbook = XLSX.read(sjisStr, { type: 'string', raw: true });
                             } catch (e2) {
-                                workbook = XLSX.read(data, { type: 'array', codepage: 932 });
+                                workbook = XLSX.read(data, { type: 'array', codepage: 932, raw: true });
                             }
                         }
                     } else {
-                        workbook = XLSX.read(data, { type: 'array' });
+                        // Excel読み込み時: 計算式やHTML装飾を排除し、評価済みの「値のみ」を取得
+                        workbook = XLSX.read(data, {
+                            type: 'array',
+                            cellFormula: false, // 計算式(.f)は読み込まず破棄
+                            cellHTML: false,    // HTML装飾は除外
+                            cellText: false,    // 書式化文字列ではなく生値
+                            cellStyles: false,  // スタイル除外
+                            raw: true           // 生の値のみ保持
+                        });
                     }
 
                     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
@@ -354,20 +375,37 @@
                     }
 
                     var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    var rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+
+                    // 防御策: セルオブジェクト内に数式(.f)が残存している場合は完全に消去し「値のみ」にする
+                    if (firstSheet && !isCSV) {
+                        for (var cellKey in firstSheet) {
+                            if (cellKey.charCodeAt(0) === 33) continue; // '!' で始まるメタデータ(!ref等)はスキップ
+                            var cell = firstSheet[cellKey];
+                            if (cell && typeof cell === 'object' && 'f' in cell) {
+                                delete cell.f; // 数式フィールドを削除
+                            }
+                        }
+                    }
+
+                    // raw: true を指定してフォーマット文字列ではなく生の値（値のみ）を抽出
+                    var rows = XLSX.utils.sheet_to_json(firstSheet, {
+                        header: 1,
+                        defval: '',
+                        raw: true
+                    });
 
                     if (!rows || rows.length === 0) {
                         return reject(new Error('データが空です。'));
                     }
 
-                    var parsedResult = parseItemizedReport(rows, file.name);
+                    var parsedResult = parseItemizedReport(rows, fileName);
                     resolve(parsedResult);
                 } catch (err) {
                     reject(new Error('ファイル解析エラー: ' + err.message));
                 }
             };
 
-            reader.onerror = function(err) {
+            reader.onerror = function() {
                 reject(new Error('ファイル読み込みに失敗しました。'));
             };
 
