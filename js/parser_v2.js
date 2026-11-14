@@ -95,12 +95,12 @@
 
     function normalizeStoreLabel(raw) {
         if (!raw || typeof raw !== 'string') return '';
-        var s = toHalfWidth(raw).trim();
+        var s = toHalfWidth(raw.slice(0, 120)).replace(/[\u0000-\u001F\u007F]/g, '').trim();
         if (!s) return '';
         if (/(?:全店舗|全店|全社|全体|全店計|全店合計|^all$)/i.test(s)) {
             return '全店舗';
         }
-        s = s.replace(/^\d{1,4}[\s:：_\-]*/, '').trim();
+        s = s.replace(/^\d{1,4}[\s:：_\-]*/, '').trim().slice(0, 30);
         return s;
     }
 
@@ -121,12 +121,13 @@
             var scanLimit = Math.min(rows.length, 8);
             for (var r = 0; r < scanLimit; r++) {
                 var row = rows[r] || [];
-                var rowStr = row.join(' ');
+                var maxCols = Math.min(row.length, 30);
+                var rowStr = row.slice(0, maxCols).join(' ').slice(0, 500);
 
-                for (var c = 0; c < row.length; c++) {
+                for (var c = 0; c < maxCols; c++) {
                     var cellVal = row[c];
                     if (cellVal === null || cellVal === undefined || cellVal === '') continue;
-                    var cellStr = toHalfWidth(String(cellVal));
+                    var cellStr = toHalfWidth(String(cellVal).slice(0, 300)).replace(/[\u0000-\u001F\u007F]/g, '');
                     if (!cellStr) continue;
 
                     if (cellStr.indexOf('対象期間開始日') !== -1) {
@@ -347,7 +348,7 @@
 
         // 3. データ行の走査・合計行の抽出・Top商品リスト
         var items = [];
-        var categoryMap = {};
+        var categoryMap = Object.create(null);
 
         for (var r = startDataRow; r < rows.length; r++) {
             var row = rows[r];
@@ -420,7 +421,7 @@
         }
 
         // カテゴリ別集計（実績は表示用、期間売上はダッシュボード互換の構成比計算用）
-        var categoryPeriodMap = {};
+        var categoryPeriodMap = Object.create(null);
         items.forEach(function (item) {
             var cat = item.category || 'その他';
             if (!categoryMap[cat]) {

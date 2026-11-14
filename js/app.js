@@ -732,7 +732,7 @@ function getIntegratedCategories() {
     var bCats = (uploadedBaseData && uploadedBaseData.categories) ? uploadedBaseData.categories : [];
     var cCats = (uploadedCompareData && uploadedCompareData.categories) ? uploadedCompareData.categories : [];
 
-    var map = {};
+    var map = Object.create(null);
     bCats.forEach(function (c) {
         map[c.name] = { name: c.name, bSales: c.sales, cSales: 0, bRatio: c.ratio, cRatio: 0 };
     });
