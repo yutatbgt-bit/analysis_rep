@@ -13,39 +13,39 @@ window.fallingItems = [];
 // ==========================================================================
 // 堅牢なハイブリッド・ストレージマネージャー (IndexedDB + localStorage フォールバック)
 // ==========================================================================
-var StorageManager = (function() {
+var StorageManager = (function () {
     var DB_NAME = 'SalesAnalysisReportDB';
     var DB_VERSION = 1;
     var STORE_NAME = 'analysis_store';
 
     function openDB() {
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             if (!window.indexedDB) {
                 return reject(new Error('IndexedDB not supported'));
             }
             var req = indexedDB.open(DB_NAME, DB_VERSION);
-            req.onupgradeneeded = function(e) {
+            req.onupgradeneeded = function (e) {
                 var db = e.target.result;
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     db.createObjectStore(STORE_NAME);
                 }
             };
-            req.onsuccess = function(e) { resolve(e.target.result); };
-            req.onerror = function(e) { reject(e.target.error); };
+            req.onsuccess = function (e) { resolve(e.target.result); };
+            req.onerror = function (e) { reject(e.target.error); };
         });
     }
 
     return {
-        get: function(key) {
-            return openDB().then(function(db) {
-                return new Promise(function(resolve, reject) {
+        get: function (key) {
+            return openDB().then(function (db) {
+                return new Promise(function (resolve, reject) {
                     var tx = db.transaction(STORE_NAME, 'readonly');
                     var store = tx.objectStore(STORE_NAME);
                     var req = store.get(key);
-                    req.onsuccess = function() { resolve(req.result); };
-                    req.onerror = function() { reject(req.error); };
+                    req.onsuccess = function () { resolve(req.result); };
+                    req.onerror = function () { reject(req.error); };
                 });
-            }).catch(function() {
+            }).catch(function () {
                 try {
                     var raw = localStorage.getItem('sa_rep_' + key);
                     return raw ? JSON.parse(raw) : null;
@@ -54,16 +54,16 @@ var StorageManager = (function() {
                 }
             });
         },
-        set: function(key, val) {
-            return openDB().then(function(db) {
-                return new Promise(function(resolve, reject) {
+        set: function (key, val) {
+            return openDB().then(function (db) {
+                return new Promise(function (resolve, reject) {
                     var tx = db.transaction(STORE_NAME, 'readwrite');
                     var store = tx.objectStore(STORE_NAME);
                     var req = store.put(val, key);
-                    req.onsuccess = function() { resolve(); };
-                    req.onerror = function() { reject(req.error); };
+                    req.onsuccess = function () { resolve(); };
+                    req.onerror = function () { reject(req.error); };
                 });
-            }).catch(function() {
+            }).catch(function () {
                 try {
                     localStorage.setItem('sa_rep_' + key, JSON.stringify(val));
                 } catch (e) {
@@ -71,35 +71,35 @@ var StorageManager = (function() {
                 }
             });
         },
-        remove: function(key) {
-            return openDB().then(function(db) {
-                return new Promise(function(resolve, reject) {
+        remove: function (key) {
+            return openDB().then(function (db) {
+                return new Promise(function (resolve, reject) {
                     var tx = db.transaction(STORE_NAME, 'readwrite');
                     var store = tx.objectStore(STORE_NAME);
                     var req = store.delete(key);
-                    req.onsuccess = function() { resolve(); };
-                    req.onerror = function() { reject(req.error); };
+                    req.onsuccess = function () { resolve(); };
+                    req.onerror = function () { reject(req.error); };
                 });
-            }).catch(function() {
+            }).catch(function () {
                 try {
                     localStorage.removeItem('sa_rep_' + key);
-                } catch (e) {}
+                } catch (e) { }
             });
         },
-        clearAll: function() {
-            return openDB().then(function(db) {
-                return new Promise(function(resolve, reject) {
+        clearAll: function () {
+            return openDB().then(function (db) {
+                return new Promise(function (resolve, reject) {
                     var tx = db.transaction(STORE_NAME, 'readwrite');
                     var store = tx.objectStore(STORE_NAME);
                     var req = store.clear();
-                    req.onsuccess = function() { resolve(); };
-                    req.onerror = function() { reject(req.error); };
+                    req.onsuccess = function () { resolve(); };
+                    req.onerror = function () { reject(req.error); };
                 });
-            }).catch(function() {
+            }).catch(function () {
                 try {
                     localStorage.removeItem('sa_rep_base_data');
                     localStorage.removeItem('sa_rep_compare_data');
-                } catch (e) {}
+                } catch (e) { }
             });
         }
     };
@@ -168,21 +168,21 @@ function formatCompRatio(val) {
     }
 }
 
-﻿// ==========================================================================
+// ==========================================================================
 // ウィンドウレベルのドラッグ&ドロップ制御
 // Edge/Chrome では http:// ページへのファイルドロップ時、
 // デフォルト動作（ファイルへのナビゲーション）を阻止しないと
 // DOM の drop イベントが発火しない。
 // ==========================================================================
-(function() {
+(function () {
     // dragover: ブラウザデフォルトの「ファイルに移動」を全画面で阻止
-    window.addEventListener('dragover', function(e) {
+    window.addEventListener('dragover', function (e) {
         e.preventDefault();
         e.stopPropagation();
     }, false);
 
     // drop: ドロップゾーン外へのドロップでナビゲーションしないよう阻止
-    window.addEventListener('drop', function(e) {
+    window.addEventListener('drop', function (e) {
         e.preventDefault();
         e.stopPropagation();
     }, false);
@@ -199,7 +199,7 @@ function showToast(message, type) {
         toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;transition:all 0.3s cubic-bezier(0.16,1,0.3,1);opacity:0;transform:translateY(10px);pointer-events:none;';
         document.body.appendChild(toast);
     }
-    
+
     toast.textContent = message;
     if (type === 'success') {
         toast.style.background = '#10b981';
@@ -219,7 +219,7 @@ function showToast(message, type) {
     toast.style.transform = 'translateY(0)';
 
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(function() {
+    toast._timer = setTimeout(function () {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(10px)';
     }, 2500);
@@ -336,14 +336,14 @@ function resetUploadData() {
 
     // 4. 分析コメントの初期化
     var commentaryItems = document.querySelectorAll('.commentary-item');
-    commentaryItems.forEach(function(item) {
+    commentaryItems.forEach(function (item) {
         item.textContent = 'データが未読込です。基準データと比較データをアップロードしてください。';
         item.style.color = 'var(--text-muted)';
     });
 
     // 5. 各種テーブルボディのブランク表示
     var tables = document.querySelectorAll('table tbody');
-    tables.forEach(function(tbody) {
+    tables.forEach(function (tbody) {
         var colCount = 6;
         var parentTable = tbody.closest('table');
         if (parentTable) {
@@ -365,170 +365,170 @@ function resetUploadData() {
     showToast('画面上の全グラフ・数値を初期化（未読込表示）しました。', 'success');
 }
 
-        // 全画面表示ロジック (アイコンのみ対応)
-        function toggleFullScreen() {
-            const btn = document.getElementById('fullscreen-btn');
-            const iconMax = btn ? btn.querySelector('.icon-maximize') : null;
-            const iconMin = btn ? btn.querySelector('.icon-minimize') : null;
+// 全画面表示ロジック (アイコンのみ対応)
+function toggleFullScreen() {
+    const btn = document.getElementById('fullscreen-btn');
+    const iconMax = btn ? btn.querySelector('.icon-maximize') : null;
+    const iconMin = btn ? btn.querySelector('.icon-minimize') : null;
 
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(function(err) {
-                    console.error('全画面表示エラー:', err);
-                });
-                if (btn) {
-                    btn.setAttribute('title', '全画面表示を終了します');
-                    btn.setAttribute('aria-label', '全画面表示を終了');
-                    btn.setAttribute('aria-pressed', 'true');
-                }
-                if (iconMax) iconMax.style.display = 'none';
-                if (iconMin) iconMin.style.display = 'block';
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-                if (btn) {
-                    btn.setAttribute('title', '全画面表示に切り替えます');
-                    btn.setAttribute('aria-label', '全画面表示に切り替え');
-                    btn.setAttribute('aria-pressed', 'false');
-                }
-                if (iconMax) iconMax.style.display = 'block';
-                if (iconMin) iconMin.style.display = 'none';
-            }
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function (err) {
+            console.error('全画面表示エラー:', err);
+        });
+        if (btn) {
+            btn.setAttribute('title', '全画面表示を終了します');
+            btn.setAttribute('aria-label', '全画面表示を終了');
+            btn.setAttribute('aria-pressed', 'true');
         }
+        if (iconMax) iconMax.style.display = 'none';
+        if (iconMin) iconMin.style.display = 'block';
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+        if (btn) {
+            btn.setAttribute('title', '全画面表示に切り替えます');
+            btn.setAttribute('aria-label', '全画面表示に切り替え');
+            btn.setAttribute('aria-pressed', 'false');
+        }
+        if (iconMax) iconMax.style.display = 'block';
+        if (iconMin) iconMin.style.display = 'none';
+    }
+}
 
-        document.addEventListener('fullscreenchange', function() {
-            const btn = document.getElementById('fullscreen-btn');
-            const iconMax = btn ? btn.querySelector('.icon-maximize') : null;
-            const iconMin = btn ? btn.querySelector('.icon-minimize') : null;
-            if (!document.fullscreenElement) {
-                if (btn) {
-                    btn.setAttribute('title', '全画面表示に切り替えます');
-                    btn.setAttribute('aria-label', '全画面表示に切り替え');
-                    btn.setAttribute('aria-pressed', 'false');
+document.addEventListener('fullscreenchange', function () {
+    const btn = document.getElementById('fullscreen-btn');
+    const iconMax = btn ? btn.querySelector('.icon-maximize') : null;
+    const iconMin = btn ? btn.querySelector('.icon-minimize') : null;
+    if (!document.fullscreenElement) {
+        if (btn) {
+            btn.setAttribute('title', '全画面表示に切り替えます');
+            btn.setAttribute('aria-label', '全画面表示に切り替え');
+            btn.setAttribute('aria-pressed', 'false');
+        }
+        if (iconMax) iconMax.style.display = 'block';
+        if (iconMin) iconMin.style.display = 'none';
+    } else {
+        if (btn) {
+            btn.setAttribute('title', '全画面表示を終了します');
+            btn.setAttribute('aria-label', '全画面表示を終了');
+            btn.setAttribute('aria-pressed', 'true');
+        }
+        if (iconMax) iconMax.style.display = 'none';
+        if (iconMin) iconMin.style.display = 'block';
+    }
+});
+
+// テーマ切り替え (ダーク / ライト)
+function applyTheme(theme) {
+    const currentTheme = theme === 'light' ? 'light' : 'dark';
+    if (currentTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+
+    const themeBtn = document.getElementById('btn-theme-toggle');
+    if (themeBtn) {
+        if (currentTheme === 'light') {
+            themeBtn.setAttribute('title', 'ダークモードに切り替えます');
+            themeBtn.setAttribute('aria-label', 'ダークモードに切り替え');
+            themeBtn.setAttribute('aria-pressed', 'true');
+        } else {
+            themeBtn.setAttribute('title', 'ライトモードに切り替えます');
+            themeBtn.setAttribute('aria-label', 'ライトモードに切り替え');
+            themeBtn.setAttribute('aria-pressed', 'false');
+        }
+    }
+
+    try {
+        localStorage.setItem('sales_analysis_theme', currentTheme);
+    } catch (e) { }
+
+    updateChartTheme(currentTheme);
+}
+
+function toggleTheme() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    applyTheme(isLight ? 'dark' : 'light');
+}
+
+function updateChartTheme(theme) {
+    if (typeof Chart === 'undefined') return;
+    const textMuted = theme === 'light' ? '#64748b' : '#94a3b8';
+    const gridColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : '#2d3348';
+
+    if (Chart.instances) {
+        Object.values(Chart.instances).forEach(function (chart) {
+            if (chart && chart.options && chart.options.scales) {
+                if (chart.options.scales.x) {
+                    if (chart.options.scales.x.ticks) chart.options.scales.x.ticks.color = textMuted;
+                    if (chart.options.scales.x.grid) chart.options.scales.x.grid.color = gridColor;
                 }
-                if (iconMax) iconMax.style.display = 'block';
-                if (iconMin) iconMin.style.display = 'none';
-            } else {
-                if (btn) {
-                    btn.setAttribute('title', '全画面表示を終了します');
-                    btn.setAttribute('aria-label', '全画面表示を終了');
-                    btn.setAttribute('aria-pressed', 'true');
+                if (chart.options.scales.y) {
+                    if (chart.options.scales.y.ticks) chart.options.scales.y.ticks.color = textMuted;
+                    if (chart.options.scales.y.grid) chart.options.scales.y.grid.color = gridColor;
                 }
-                if (iconMax) iconMax.style.display = 'none';
-                if (iconMin) iconMin.style.display = 'block';
+                if (chart.options.scales.y1) {
+                    if (chart.options.scales.y1.ticks) chart.options.scales.y1.ticks.color = textMuted;
+                    if (chart.options.scales.y1.grid) chart.options.scales.y1.grid.color = gridColor;
+                }
+                chart.update();
             }
         });
+    }
+}
 
-        // テーマ切り替え (ダーク / ライト)
-        function applyTheme(theme) {
-            const currentTheme = theme === 'light' ? 'light' : 'dark';
-            if (currentTheme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-            }
+// 初期ロード時に保存テーマを反映
+try {
+    const savedTheme = localStorage.getItem('sales_analysis_theme');
+    if (savedTheme === 'light') {
+        applyTheme('light');
+    }
+} catch (e) { }
 
-            const themeBtn = document.getElementById('btn-theme-toggle');
-            if (themeBtn) {
-                if (currentTheme === 'light') {
-                    themeBtn.setAttribute('title', 'ダークモードに切り替えます');
-                    themeBtn.setAttribute('aria-label', 'ダークモードに切り替え');
-                    themeBtn.setAttribute('aria-pressed', 'true');
-                } else {
-                    themeBtn.setAttribute('title', 'ライトモードに切り替えます');
-                    themeBtn.setAttribute('aria-label', 'ライトモードに切り替え');
-                    themeBtn.setAttribute('aria-pressed', 'false');
-                }
-            }
+// タブ切替ロジック
+function switchTab(tab) {
+    const btnWeek = document.getElementById('tab-btn-week');
+    const btnDay = document.getElementById('tab-btn-day');
+    const tblWeek = document.getElementById('table-week');
+    const tblDay = document.getElementById('table-day');
 
-            try {
-                localStorage.setItem('sales_analysis_theme', currentTheme);
-            } catch (e) {}
+    var pageWeek = document.getElementById('pagination-week');
+    var pageDay = document.getElementById('pagination-day');
 
-            updateChartTheme(currentTheme);
-        }
-
-        function toggleTheme() {
-            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-            applyTheme(isLight ? 'dark' : 'light');
-        }
-
-        function updateChartTheme(theme) {
-            if (typeof Chart === 'undefined') return;
-            const textMuted = theme === 'light' ? '#64748b' : '#94a3b8';
-            const gridColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : '#2d3348';
-
-            if (Chart.instances) {
-                Object.values(Chart.instances).forEach(function(chart) {
-                    if (chart && chart.options && chart.options.scales) {
-                        if (chart.options.scales.x) {
-                            if (chart.options.scales.x.ticks) chart.options.scales.x.ticks.color = textMuted;
-                            if (chart.options.scales.x.grid) chart.options.scales.x.grid.color = gridColor;
-                        }
-                        if (chart.options.scales.y) {
-                            if (chart.options.scales.y.ticks) chart.options.scales.y.ticks.color = textMuted;
-                            if (chart.options.scales.y.grid) chart.options.scales.y.grid.color = gridColor;
-                        }
-                        if (chart.options.scales.y1) {
-                            if (chart.options.scales.y1.ticks) chart.options.scales.y1.ticks.color = textMuted;
-                            if (chart.options.scales.y1.grid) chart.options.scales.y1.grid.color = gridColor;
-                        }
-                        chart.update();
-                    }
-                });
-            }
-        }
-
-        // 初期ロード時に保存テーマを反映
-        try {
-            const savedTheme = localStorage.getItem('sales_analysis_theme');
-            if (savedTheme === 'light') {
-                applyTheme('light');
-            }
-        } catch (e) {}
-
-        // タブ切替ロジック
-        function switchTab(tab) {
-            const btnWeek = document.getElementById('tab-btn-week');
-            const btnDay = document.getElementById('tab-btn-day');
-            const tblWeek = document.getElementById('table-week');
-            const tblDay = document.getElementById('table-day');
-
-            var pageWeek = document.getElementById('pagination-week');
-            var pageDay = document.getElementById('pagination-day');
-            
-            if (tab === 'week') {
-                btnWeek.classList.add('active');
-                btnWeek.setAttribute('aria-selected', 'true');
-                btnDay.classList.remove('active');
-                btnDay.setAttribute('aria-selected', 'false');
-                tblWeek.style.display = 'block';
-                tblDay.style.display = 'none';
-                if (pageWeek) pageWeek.style.display = 'flex';
-                if (pageDay) pageDay.style.display = 'none';
-            } else {
-                btnDay.classList.add('active');
-                btnDay.setAttribute('aria-selected', 'true');
-                btnWeek.classList.remove('active');
-                btnWeek.setAttribute('aria-selected', 'false');
-                tblDay.style.display = 'block';
-                tblWeek.style.display = 'none';
-                if (pageWeek) pageWeek.style.display = 'none';
-                if (pageDay) pageDay.style.display = 'flex';
-            }
-        }
+    if (tab === 'week') {
+        btnWeek.classList.add('active');
+        btnWeek.setAttribute('aria-selected', 'true');
+        btnDay.classList.remove('active');
+        btnDay.setAttribute('aria-selected', 'false');
+        tblWeek.style.display = 'block';
+        tblDay.style.display = 'none';
+        if (pageWeek) pageWeek.style.display = 'flex';
+        if (pageDay) pageDay.style.display = 'none';
+    } else {
+        btnDay.classList.add('active');
+        btnDay.setAttribute('aria-selected', 'true');
+        btnWeek.classList.remove('active');
+        btnWeek.setAttribute('aria-selected', 'false');
+        tblDay.style.display = 'block';
+        tblWeek.style.display = 'none';
+        if (pageWeek) pageWeek.style.display = 'none';
+        if (pageDay) pageDay.style.display = 'flex';
+    }
+}
 
 
 
-        // DOMContentLoaded: 初期ブランク表示（参照実装と同一パターン）
-        document.addEventListener('DOMContentLoaded', function() {
-            initBlankCharts();
-        });
+// DOMContentLoaded: 初期ブランク表示（参照実装と同一パターン）
+document.addEventListener('DOMContentLoaded', function () {
+    initBlankCharts();
+});
 
 
 
 
-        
+
 // ==========================================================================
 // ファイルメタデータ保持・ワンクリック個別直接削除マネージャー
 // ==========================================================================
@@ -541,15 +541,33 @@ function updateFilePill(pillId, fileName, prefix, slot) {
     var pill = document.getElementById(pillId);
     if (!pill) return;
     var targetSlot = slot || (pillId.indexOf('base') !== -1 ? 'base' : 'compare');
-    var shortName = fileName.length > 20 ? fileName.substring(0, 18) + '…' : fileName;
+    var meta = fileMetadata[targetSlot] || null;
+    var dataObj = targetSlot === 'base' ? uploadedBaseData : uploadedCompareData;
 
-    // XSS対策: textContent で安全にファイル名を描画
-    pill.textContent = prefix + ': ' + shortName;
+    var periodLabel = (meta && meta.periodStr) || (dataObj && dataObj.periodStr) || '';
+    var storeLabel = (meta && meta.storeName) || (dataObj && dataObj.storeName) || '';
+
+    if ((!periodLabel || periodLabel === '期間未定' || !storeLabel) &&
+        window.SalesParser && typeof window.SalesParser.extractMeta === 'function') {
+        var extracted = window.SalesParser.extractMeta([], fileName || '', '');
+        if (!periodLabel || periodLabel === '期間未定') {
+            periodLabel = extracted.periodStr;
+        }
+        if (!storeLabel) {
+            storeLabel = extracted.storeName;
+        }
+    }
+
+    if (!periodLabel) periodLabel = '期間未特定';
+    if (!storeLabel) storeLabel = '全店舗';
+
+    // XSS対策: textContent で安全に対象期間と店舗名を描画
+    pill.textContent = prefix + ': ' + periodLabel + ' ' + storeLabel;
     pill.title = 'クリックしてこのファイル（' + fileName + '）を削除';
     pill.classList.remove('hidden');
 
     // ピルをワンクリックするだけで即座に削除
-    pill.onclick = function() {
+    pill.onclick = function () {
         clearSlot(targetSlot);
     };
 }
@@ -715,10 +733,10 @@ function getIntegratedCategories() {
     var cCats = (uploadedCompareData && uploadedCompareData.categories) ? uploadedCompareData.categories : [];
 
     var map = {};
-    bCats.forEach(function(c) {
+    bCats.forEach(function (c) {
         map[c.name] = { name: c.name, bSales: c.sales, cSales: 0, bRatio: c.ratio, cRatio: 0 };
     });
-    cCats.forEach(function(c) {
+    cCats.forEach(function (c) {
         if (!map[c.name]) {
             map[c.name] = { name: c.name, bSales: 0, cSales: c.sales, bRatio: 0, cRatio: c.ratio };
         } else {
@@ -741,7 +759,7 @@ function getIntegratedCategories() {
         list.push(item);
     }
 
-    list.sort(function(a, b) { return b.displaySales - a.displaySales; });
+    list.sort(function (a, b) { return b.displaySales - a.displaySales; });
     return list;
 }
 
@@ -767,7 +785,7 @@ function renderCharts() {
     if (integratedCats.length === 0) return;
 
     var topCats = integratedCats;
-    var labels = topCats.map(function(c) { return c.name; });
+    var labels = topCats.map(function (c) { return c.name; });
 
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
     var textMuted = isLight ? '#64748b' : '#94a3b8';
@@ -799,12 +817,12 @@ function renderCharts() {
         var datasets = [];
 
         if (uploadedBaseData && uploadedCompareData) {
-            var actualRatios = topCats.map(function(c) {
+            var actualRatios = topCats.map(function (c) {
                 return c.compRatio !== null ? parseFloat(c.compRatio.toFixed(1)) : 100.0;
             });
             var ratioData = actualRatios.map(ratioToAxis);
-            var bSalesData = topCats.map(function(c) { return c.bSales; });
-            var cSalesData = topCats.map(function(c) { return c.cSales; });
+            var bSalesData = topCats.map(function (c) { return c.bSales; });
+            var cSalesData = topCats.map(function (c) { return c.cSales; });
 
             datasets.push({
                 label: '対比 (%)',
@@ -837,7 +855,7 @@ function renderCharts() {
                 yAxisID: 'y'
             });
         } else if (uploadedBaseData) {
-            var bSalesOnly = topCats.map(function(c) { return c.bSales; });
+            var bSalesOnly = topCats.map(function (c) { return c.bSales; });
             datasets.push({
                 label: '比較基準 実績',
                 type: 'bar',
@@ -848,7 +866,7 @@ function renderCharts() {
                 yAxisID: 'y'
             });
         } else if (uploadedCompareData) {
-            var cSalesOnly = topCats.map(function(c) { return c.cSales; });
+            var cSalesOnly = topCats.map(function (c) { return c.cSales; });
             datasets.push({
                 label: '比較対象 実績',
                 type: 'bar',
@@ -872,7 +890,7 @@ function renderCharts() {
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 var ds = context.dataset;
                                 if (ds.yAxisID === 'y1' && Array.isArray(ds.actualRatios)) {
                                     return ds.label + ': ' + ds.actualRatios[context.dataIndex] + '%';
@@ -887,7 +905,7 @@ function renderCharts() {
                     y: {
                         ticks: {
                             color: textMuted,
-                            callback: function(v) { return (v / 1000).toLocaleString(); }
+                            callback: function (v) { return (v / 1000).toLocaleString(); }
                         },
                         grid: { color: gridColor }
                     },
@@ -900,7 +918,7 @@ function renderCharts() {
                         ticks: {
                             color: textMuted,
                             stepSize: 1,
-                            callback: function(v) { return axisToRatio(v) + '%'; }
+                            callback: function (v) { return axisToRatio(v) + '%'; }
                         }
                     }
                 }
@@ -912,8 +930,8 @@ function renderCharts() {
     if (pieCanvas) {
         var pieCtx = pieCanvas.getContext('2d');
         var pieTop = topCats; // Removed slice to show all categories
-        var pieLabels = pieTop.map(function(c) { return c.name; });
-        var pieValues = pieTop.map(function(c) {
+        var pieLabels = pieTop.map(function (c) { return c.name; });
+        var pieValues = pieTop.map(function (c) {
             var r = uploadedCompareData ? c.cRatio : c.bRatio;
             return parseFloat(r.toFixed(1));
         });
@@ -927,7 +945,8 @@ function renderCharts() {
                     data: pieValues,
                     backgroundColor: pieColors,
                     borderColor: isLight ? '#ffffff' : '#1a1d27',
-                    borderWidth: 0, offset: 5, hoverOffset: 30, radius: '70%' }]
+                    borderWidth: 0, offset: 5, hoverOffset: 30, radius: '70%'
+                }]
             },
             options: {
                 layout: { padding: 10 },
@@ -937,7 +956,7 @@ function renderCharts() {
                     legend: { position: 'bottom', labels: { color: textMuted, font: { size: 11 }, boxBorderWidth: 0 } },
                     tooltip: {
                         callbacks: {
-                            label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.parsed + '%'; }
+                            label: function (ctx) { return ' ' + ctx.label + ': ' + ctx.parsed + '%'; }
                         }
                     }
                 }
@@ -956,7 +975,7 @@ function renderTables() {
     if (catBody) {
         var integratedCats = getIntegratedCategories();
         if (integratedCats.length > 0) {
-            catBody.innerHTML = integratedCats.map(function(item) {
+            catBody.innerHTML = integratedCats.map(function (item) {
                 var bDisplay = uploadedBaseData ? formatYen(item.bSales) : '-';
                 var bRatioDisplay = uploadedBaseData ? item.bRatio.toFixed(2) + '%' : '-';
                 var cDisplay = uploadedCompareData ? formatYen(item.cSales) : '-';
@@ -973,15 +992,15 @@ function renderTables() {
                     : '-';
 
                 return '<tr>' +
-                      '<td class="col-cat-name">' + escHtml(item.name) + '</td>' +
-                      '<td class="col-cat-sales text-right">' + bDisplay + '</td>' +
-                      '<td class="col-cat-sales text-right">' + cDisplay + '</td>' +
-                      '<td class="col-cat-diff text-right">' + salesDiffHtml + '</td>' +
-                      '<td class="col-cat-ratio text-right">' + bRatioDisplay + '</td>' +
-                      '<td class="col-cat-ratio text-right">' + cRatioDisplay + '</td>' +
-                      '<td class="col-cat-diff text-right">' + ratioDiffHtml + '</td>' +
-                      '<td class="col-cat-ratio text-right">' + compRatioHtml + '</td>' +
-                      '</tr>';
+                    '<td class="col-cat-name">' + escHtml(item.name) + '</td>' +
+                    '<td class="col-cat-sales text-right">' + bDisplay + '</td>' +
+                    '<td class="col-cat-sales text-right">' + cDisplay + '</td>' +
+                    '<td class="col-cat-diff text-right">' + salesDiffHtml + '</td>' +
+                    '<td class="col-cat-ratio text-right">' + bRatioDisplay + '</td>' +
+                    '<td class="col-cat-ratio text-right">' + cRatioDisplay + '</td>' +
+                    '<td class="col-cat-diff text-right">' + ratioDiffHtml + '</td>' +
+                    '<td class="col-cat-ratio text-right">' + compRatioHtml + '</td>' +
+                    '</tr>';
             }).join('');
         } else {
             catBody.innerHTML = BLANK_MSG_8;
@@ -989,52 +1008,52 @@ function renderTables() {
     }
 
     // 2. 急上昇・急下落テーブル (6列)
-    var risingBody  = document.getElementById('tbody-rising');
+    var risingBody = document.getElementById('tbody-rising');
     var fallingBody = document.getElementById('tbody-falling');
     if (uploadedBaseData && uploadedCompareData &&
         uploadedBaseData.allItems && uploadedCompareData.allItems) {
         var baseItemMap = {};
-        uploadedBaseData.allItems.forEach(function(it) { baseItemMap[it.name] = it.dailySales; });
+        uploadedBaseData.allItems.forEach(function (it) { baseItemMap[it.name] = it.dailySales; });
         var diffs = [];
-        uploadedCompareData.allItems.forEach(function(it) {
+        uploadedCompareData.allItems.forEach(function (it) {
             var bSales = baseItemMap[it.name] || 0;
             diffs.push({ name: it.name, code: it.code, bSales: bSales, cSales: it.dailySales, diff: it.dailySales - bSales });
         });
-        uploadedBaseData.allItems.forEach(function(it) {
-            var found = diffs.some(function(d) { return d.name === it.name; });
+        uploadedBaseData.allItems.forEach(function (it) {
+            var found = diffs.some(function (d) { return d.name === it.name; });
             if (!found) diffs.push({ name: it.name, code: it.code, bSales: it.dailySales, cSales: 0, diff: -it.dailySales });
         });
-        window.risingItems = diffs.filter(function(d) { return d.diff > 0; }).sort(function(a,b){return b.diff-a.diff;}).slice(0,50);
-        window.fallingItems = diffs.filter(function(d) { return d.diff < 0; }).sort(function(a,b){return a.diff-b.diff;}).slice(0,50);
+        window.risingItems = diffs.filter(function (d) { return d.diff > 0; }).sort(function (a, b) { return b.diff - a.diff; }).slice(0, 50);
+        window.fallingItems = diffs.filter(function (d) { return d.diff < 0; }).sort(function (a, b) { return a.diff - b.diff; }).slice(0, 50);
     }
 
     // 3. 単品ランキングテーブル Best50 (実績ベース)
     // 基準データおよび比較対象データの商品順位・実績マップを作成
-          var baseRankMap = {};
-      var baseSalesMap = {};
-      if (uploadedBaseData) {
-          var bItems = uploadedBaseData.allItems || uploadedBaseData.topItems;
-          if (bItems) {
-              bItems.forEach(function(it, i) {
-                  baseRankMap[it.name] = i + 1;
-                  baseSalesMap[it.name] = it.dailySales;
-              });
-          }
-      }
+    var baseRankMap = {};
+    var baseSalesMap = {};
+    if (uploadedBaseData) {
+        var bItems = uploadedBaseData.allItems || uploadedBaseData.topItems;
+        if (bItems) {
+            bItems.forEach(function (it, i) {
+                baseRankMap[it.name] = i + 1;
+                baseSalesMap[it.name] = it.dailySales;
+            });
+        }
+    }
 
-      var compareRankMap = {};
-      var compareSalesMap = {};
-      if (uploadedCompareData) {
-          var cItems = uploadedCompareData.allItems || uploadedCompareData.topItems;
-          if (cItems) {
-              cItems.forEach(function(it, i) {
-                  compareRankMap[it.name] = i + 1;
-                  compareSalesMap[it.name] = it.dailySales;
-              });
-          }
-      }
+    var compareRankMap = {};
+    var compareSalesMap = {};
+    if (uploadedCompareData) {
+        var cItems = uploadedCompareData.allItems || uploadedCompareData.topItems;
+        if (cItems) {
+            cItems.forEach(function (it, i) {
+                compareRankMap[it.name] = i + 1;
+                compareSalesMap[it.name] = it.dailySales;
+            });
+        }
+    }
 
-          window.renderRankTableRising = function(page) {
+    window.renderRankTableRising = function (page) {
         var risingBody = document.getElementById('tbody-rising');
         var paginationDiv = document.getElementById('pagination-rising');
         if (!risingBody) return;
@@ -1054,7 +1073,7 @@ function renderTables() {
         var endIdx = startIdx + window.rankItemsPerPage;
         var pageItems = items.slice(startIdx, endIdx);
 
-        risingBody.innerHTML = pageItems.map(function(d, i) {
+        risingBody.innerHTML = pageItems.map(function (d, i) {
             var idx = startIdx + i;
             var growthStr = d.bSales > 0 ? formatCompRatio(d.cSales / d.bSales * 100) : '-';
             return '<tr>' +
@@ -1073,7 +1092,7 @@ function renderTables() {
     };
     window.renderRankTableRising(window.currentRankPageRising || 1);
 
-    window.renderRankTableFalling = function(page) {
+    window.renderRankTableFalling = function (page) {
         var fallingBody = document.getElementById('tbody-falling');
         var paginationDiv = document.getElementById('pagination-falling');
         if (!fallingBody) return;
@@ -1093,7 +1112,7 @@ function renderTables() {
         var endIdx = startIdx + window.rankItemsPerPage;
         var pageItems = items.slice(startIdx, endIdx);
 
-        fallingBody.innerHTML = pageItems.map(function(d, i) {
+        fallingBody.innerHTML = pageItems.map(function (d, i) {
             var idx = startIdx + i;
             var remainStr = d.bSales > 0 ? formatCompRatio(d.cSales / d.bSales * 100) : '-';
             return '<tr>' +
@@ -1113,148 +1132,148 @@ function renderTables() {
     window.renderRankTableFalling(window.currentRankPageFalling || 1);
 
     // 比較基準テーブル (9列: 順位/商品名/商品コード/実績/構成比/比較順位/順位変動/実績差分/前年比)
-      window.renderRankTableWeek = function(page) {
-          var weekBody = document.getElementById('tbody-week');
-          var paginationDiv = document.getElementById('pagination-week');
-          if (!weekBody) return;
-          var weekData = uploadedBaseData;
-          if (!weekData || !weekData.topItems || weekData.topItems.length === 0) {
-              weekBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
-              if (paginationDiv) paginationDiv.innerHTML = '';
-              return;
-          }
+    window.renderRankTableWeek = function (page) {
+        var weekBody = document.getElementById('tbody-week');
+        var paginationDiv = document.getElementById('pagination-week');
+        if (!weekBody) return;
+        var weekData = uploadedBaseData;
+        if (!weekData || !weekData.topItems || weekData.topItems.length === 0) {
+            weekBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
+            if (paginationDiv) paginationDiv.innerHTML = '';
+            return;
+        }
 
-          var items = weekData.topItems.slice(0, 50);
-          var totalPages = Math.ceil(items.length / window.rankItemsPerPage);
-          if (page < 1) page = 1;
-          if (page > totalPages) page = totalPages;
-          window.currentRankPageWeek = page;
+        var items = weekData.topItems.slice(0, 50);
+        var totalPages = Math.ceil(items.length / window.rankItemsPerPage);
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        window.currentRankPageWeek = page;
 
-          var startIdx = (page - 1) * window.rankItemsPerPage;
-          var endIdx = startIdx + window.rankItemsPerPage;
-          var pageItems = items.slice(startIdx, endIdx);
+        var startIdx = (page - 1) * window.rankItemsPerPage;
+        var endIdx = startIdx + window.rankItemsPerPage;
+        var pageItems = items.slice(startIdx, endIdx);
 
-          weekBody.innerHTML = pageItems.map(function(item, i) {
-              var idx = startIdx + i;
-              var currentRank = idx + 1;
-              var dailySalesStr = formatYen(item.dailySales);
-              var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
-                  ? item.ratio
-                  : (weekData.totalDailySales > 0 ? (item.dailySales / weekData.totalDailySales * 100) : null);
-              var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+        weekBody.innerHTML = pageItems.map(function (item, i) {
+            var idx = startIdx + i;
+            var currentRank = idx + 1;
+            var dailySalesStr = formatYen(item.dailySales);
+            var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
+                ? item.ratio
+                : (weekData.totalDailySales > 0 ? (item.dailySales / weekData.totalDailySales * 100) : null);
+            var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
 
-              var compRank = compareRankMap[item.name];
-              var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '-') : '-';
-              var rankDiffHtml = uploadedCompareData ? formatRankDiff(currentRank, compRank) : '-';
+            var compRank = compareRankMap[item.name];
+            var compRankDisplay = uploadedCompareData ? (compRank ? compRank + '位' : '-') : '-';
+            var rankDiffHtml = uploadedCompareData ? formatRankDiff(currentRank, compRank) : '-';
 
-              var cSales = compareSalesMap[item.name] || 0;
-              var salesDiffHtml = uploadedCompareData ? formatDiffYen(cSales - item.dailySales) : '-';
+            var cSales = compareSalesMap[item.name] || 0;
+            var salesDiffHtml = uploadedCompareData ? formatDiffYen(cSales - item.dailySales) : '-';
 
-              // 前年比・対比比率（比較対象 / 基準）
-              // 比較データが読み込まれている場合は、実際のアップロード実績値から算出
-              var compRatioVal = null;
-              if (uploadedCompareData) {
-                  if (item.dailySales > 0) {
-                      compRatioVal = (cSales / item.dailySales * 100);
-                  }
-              } else if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
-                  compRatioVal = item.compRatio;
-              }
-              var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
+            // 前年比・対比比率（比較対象 / 基準）
+            // 比較データが読み込まれている場合は、実際のアップロード実績値から算出
+            var compRatioVal = null;
+            if (uploadedCompareData) {
+                if (item.dailySales > 0) {
+                    compRatioVal = (cSales / item.dailySales * 100);
+                }
+            } else if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+                compRatioVal = item.compRatio;
+            }
+            var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
 
-              return '<tr>' +
-                  '<td class="text-center">' + currentRank + '</td>' +
-                  '<td class="font-medium">' + escHtml(item.name) + '</td>' +
-                  '<td>' + (item.code || '') + '</td>' +
-                  '<td class="text-right">' + dailySalesStr + '</td>' +
-                  '<td class="text-right">' + ratioStr + '</td>' +
-                  '<td class="text-center">' + compRankDisplay + '</td>' +
-                  '<td class="text-center">' + rankDiffHtml + '</td>' +
-                  '<td class="text-right">' + salesDiffHtml + '</td>' +
-                  '<td class="text-right">' + compRatioHtml + '</td>' +
-                  '</tr>';
-          }).join('');
+            return '<tr>' +
+                '<td class="text-center">' + currentRank + '</td>' +
+                '<td class="font-medium">' + escHtml(item.name) + '</td>' +
+                '<td>' + (item.code || '') + '</td>' +
+                '<td class="text-right">' + dailySalesStr + '</td>' +
+                '<td class="text-right">' + ratioStr + '</td>' +
+                '<td class="text-center">' + compRankDisplay + '</td>' +
+                '<td class="text-center">' + rankDiffHtml + '</td>' +
+                '<td class="text-right">' + salesDiffHtml + '</td>' +
+                '<td class="text-right">' + compRatioHtml + '</td>' +
+                '</tr>';
+        }).join('');
 
-          renderPagination(totalPages, page, 'pagination-week', function(newPage) {
-              window.renderRankTableWeek(newPage);
-          });
-      };
-      window.renderRankTableWeek(window.currentRankPageWeek);
-      // 比較対象テーブル (9列: 順位/商品名/商品コード/実績/構成比/基準順位/順位変動/実績差分/前年比)
-      window.renderRankTableDay = function(page) {
-          var dayBody = document.getElementById('tbody-day');
-          var paginationDiv = document.getElementById('pagination-day');
-          if (!dayBody) return;
-          var dayData = uploadedCompareData;
-          if (!dayData || !dayData.topItems || dayData.topItems.length === 0) {
-              dayBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
-              if (paginationDiv) paginationDiv.innerHTML = '';
-              return;
-          }
+        renderPagination(totalPages, page, 'pagination-week', function (newPage) {
+            window.renderRankTableWeek(newPage);
+        });
+    };
+    window.renderRankTableWeek(window.currentRankPageWeek);
+    // 比較対象テーブル (9列: 順位/商品名/商品コード/実績/構成比/基準順位/順位変動/実績差分/前年比)
+    window.renderRankTableDay = function (page) {
+        var dayBody = document.getElementById('tbody-day');
+        var paginationDiv = document.getElementById('pagination-day');
+        if (!dayBody) return;
+        var dayData = uploadedCompareData;
+        if (!dayData || !dayData.topItems || dayData.topItems.length === 0) {
+            dayBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:13px;">データが読み込まれていません</td></tr>';
+            if (paginationDiv) paginationDiv.innerHTML = '';
+            return;
+        }
 
-          var items = dayData.topItems.slice(0, 50);
-          var totalPages = Math.ceil(items.length / window.rankItemsPerPage);
-          if (page < 1) page = 1;
-          if (page > totalPages) page = totalPages;
-          window.currentRankPageDay = page;
+        var items = dayData.topItems.slice(0, 50);
+        var totalPages = Math.ceil(items.length / window.rankItemsPerPage);
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        window.currentRankPageDay = page;
 
-          var startIdx = (page - 1) * window.rankItemsPerPage;
-          var endIdx = startIdx + window.rankItemsPerPage;
-          var pageItems = items.slice(startIdx, endIdx);
+        var startIdx = (page - 1) * window.rankItemsPerPage;
+        var endIdx = startIdx + window.rankItemsPerPage;
+        var pageItems = items.slice(startIdx, endIdx);
 
-          dayBody.innerHTML = pageItems.map(function(item, i) {
-              var idx = startIdx + i;
-              var currentRank = idx + 1;
-              var baseRank = baseRankMap[item.name];
-              var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '-') : '-';
-              var rankDiffHtml = uploadedBaseData ? formatRankDiff(baseRank, currentRank) : '-';
+        dayBody.innerHTML = pageItems.map(function (item, i) {
+            var idx = startIdx + i;
+            var currentRank = idx + 1;
+            var baseRank = baseRankMap[item.name];
+            var baseRankDisplay = uploadedBaseData ? (baseRank ? baseRank + '位' : '-') : '-';
+            var rankDiffHtml = uploadedBaseData ? formatRankDiff(baseRank, currentRank) : '-';
 
-              var dailySalesStr = formatYen(item.dailySales);
-              var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
-                  ? item.ratio
-                  : (dayData.totalDailySales > 0 ? (item.dailySales / dayData.totalDailySales * 100) : null);
-              var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
+            var dailySalesStr = formatYen(item.dailySales);
+            var ratioNum = (item.ratio !== null && item.ratio !== undefined && !isNaN(item.ratio))
+                ? item.ratio
+                : (dayData.totalDailySales > 0 ? (item.dailySales / dayData.totalDailySales * 100) : null);
+            var ratioStr = (ratioNum !== null && !isNaN(ratioNum)) ? ratioNum.toFixed(2) + '%' : '-';
 
-              var bSales = baseSalesMap[item.name] || 0;
-              var salesDiffHtml = uploadedBaseData ? formatDiffYen(item.dailySales - bSales) : '-';
+            var bSales = baseSalesMap[item.name] || 0;
+            var salesDiffHtml = uploadedBaseData ? formatDiffYen(item.dailySales - bSales) : '-';
 
-              // 前年比・対比比率（売上高の対比比率: 対象 / 基準）
-              // 基準データが読み込まれている場合は、実際のアップロード実績値から算出
-              var compRatioVal = null;
-              if (uploadedBaseData) {
-                  if (bSales > 0) {
-                      compRatioVal = (item.dailySales / bSales * 100);
-                  }
-              } else if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
-                  compRatioVal = item.compRatio;
-              }
-              var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
+            // 前年比・対比比率（売上高の対比比率: 対象 / 基準）
+            // 基準データが読み込まれている場合は、実際のアップロード実績値から算出
+            var compRatioVal = null;
+            if (uploadedBaseData) {
+                if (bSales > 0) {
+                    compRatioVal = (item.dailySales / bSales * 100);
+                }
+            } else if (item.compRatio !== null && item.compRatio !== undefined && !isNaN(item.compRatio)) {
+                compRatioVal = item.compRatio;
+            }
+            var compRatioHtml = compRatioVal !== null ? formatCompRatio(compRatioVal) : '-';
 
-              return '<tr>' +
-                  '<td class="text-center">' + currentRank + '</td>' +
-                  '<td class="font-medium">' + escHtml(item.name) + '</td>' +
-                  '<td>' + (item.code || '') + '</td>' +
-                  '<td class="text-right">' + dailySalesStr + '</td>' +
-                  '<td class="text-right">' + ratioStr + '</td>' +
-                  '<td class="text-center">' + baseRankDisplay + '</td>' +
-                  '<td class="text-center">' + rankDiffHtml + '</td>' +
-                  '<td class="text-right">' + salesDiffHtml + '</td>' +
-                  '<td class="text-right">' + compRatioHtml + '</td>' +
-                  '</tr>';
-          }).join('');
+            return '<tr>' +
+                '<td class="text-center">' + currentRank + '</td>' +
+                '<td class="font-medium">' + escHtml(item.name) + '</td>' +
+                '<td>' + (item.code || '') + '</td>' +
+                '<td class="text-right">' + dailySalesStr + '</td>' +
+                '<td class="text-right">' + ratioStr + '</td>' +
+                '<td class="text-center">' + baseRankDisplay + '</td>' +
+                '<td class="text-center">' + rankDiffHtml + '</td>' +
+                '<td class="text-right">' + salesDiffHtml + '</td>' +
+                '<td class="text-right">' + compRatioHtml + '</td>' +
+                '</tr>';
+        }).join('');
 
-          renderPagination(totalPages, page, 'pagination-day', function(newPage) {
-              window.renderRankTableDay(newPage);
-          });
-      };
-      window.renderRankTableDay(window.currentRankPageDay);
+        renderPagination(totalPages, page, 'pagination-day', function (newPage) {
+            window.renderRankTableDay(newPage);
+        });
+    };
+    window.renderRankTableDay(window.currentRankPageDay);
 }
 
 // ==========================================================================
 // 動的レポート生成（全体対比・カテゴリ分析・ランキング傾向）
 // ==========================================================================
 function renderCommentary() {
-    var el = function(id) { return document.getElementById(id); };
+    var el = function (id) { return document.getElementById(id); };
 
     // 1. 全体対比コメント
     var cOver1 = el('commentary-overview-1');
@@ -1268,7 +1287,7 @@ function renderCommentary() {
         var cPeriod = uploadedCompareData.periodStr || '比較対象期間';
 
         if (cOver1) {
-            cOver1.innerHTML = '<strong>実績の推移:</strong> 比較対象（' + escHtml(cPeriod) + '）の実績 <strong>' + formatYen(cSales) + '</strong> は、比較基準（' + escHtml(bPeriod) + '）の実績 ' + formatYen(bSales) + ' と比べて <strong>約' + Math.abs(pct) + '% ' + (diff >= 0 ? '増加（+' : '減少（-') + formatYen(Math.abs(diff)).replace('¥','') + '）</strong> しています。';
+            cOver1.innerHTML = '<strong>実績の推移:</strong> 比較対象（' + escHtml(cPeriod) + '）の実績 <strong>' + formatYen(cSales) + '</strong> は、比較基準（' + escHtml(bPeriod) + '）の実績 ' + formatYen(bSales) + ' と比べて <strong>約' + Math.abs(pct) + '% ' + (diff >= 0 ? '増加（+' : '減少（-') + formatYen(Math.abs(diff)).replace('¥', '') + '）</strong> しています。';
             cOver1.style.color = '';
         }
         if (cOver2) {
@@ -1295,12 +1314,12 @@ function renderCommentary() {
 
     if (uploadedBaseData && uploadedCompareData && integratedCats.length > 0) {
         // (1) 実績が上昇したカテゴリ
-        var risingSales = integratedCats.filter(function(c) { return c.salesDiff > 0; })
-            .sort(function(a, b) { return b.salesDiff - a.salesDiff; });
+        var risingSales = integratedCats.filter(function (c) { return c.salesDiff > 0; })
+            .sort(function (a, b) { return b.salesDiff - a.salesDiff; });
         if (cCat1) {
             if (risingSales.length > 0) {
-                var rParts = risingSales.slice(0, 3).map(function(c) {
-                    return '「' + escHtml(c.name) + '」（<strong>+' + formatYen(c.salesDiff).replace('¥','') + '</strong>）';
+                var rParts = risingSales.slice(0, 3).map(function (c) {
+                    return '「' + escHtml(c.name) + '」（<strong>+' + formatYen(c.salesDiff).replace('¥', '') + '</strong>）';
                 });
                 cCat1.innerHTML = '<strong>実績が上昇したカテゴリ:</strong> ' + rParts.join('、') + ' が比較対象で実績を伸ばしています。';
             } else {
@@ -1310,11 +1329,11 @@ function renderCommentary() {
         }
 
         // (2) 実績が下降したカテゴリ
-        var fallingSales = integratedCats.filter(function(c) { return c.salesDiff < 0; })
-            .sort(function(a, b) { return a.salesDiff - b.salesDiff; });
+        var fallingSales = integratedCats.filter(function (c) { return c.salesDiff < 0; })
+            .sort(function (a, b) { return a.salesDiff - b.salesDiff; });
         if (cCat2) {
             if (fallingSales.length > 0) {
-                var fParts = fallingSales.slice(0, 3).map(function(c) {
+                var fParts = fallingSales.slice(0, 3).map(function (c) {
                     return '「' + escHtml(c.name) + '」（<strong>' + formatYen(c.salesDiff) + '</strong>）';
                 });
                 cCat2.innerHTML = '<strong>実績が下降したカテゴリ:</strong> ' + fParts.join('、') + ' が比較対象で実績を落としています。';
@@ -1325,11 +1344,11 @@ function renderCommentary() {
         }
 
         // (3) 構成比が上昇したカテゴリ
-        var risingRatio = integratedCats.filter(function(c) { return c.ratioDiff > 0.05; })
-            .sort(function(a, b) { return b.ratioDiff - a.ratioDiff; });
+        var risingRatio = integratedCats.filter(function (c) { return c.ratioDiff > 0.05; })
+            .sort(function (a, b) { return b.ratioDiff - a.ratioDiff; });
         if (cCat3) {
             if (risingRatio.length > 0) {
-                var rrParts = risingRatio.slice(0, 3).map(function(c) {
+                var rrParts = risingRatio.slice(0, 3).map(function (c) {
                     return '「' + escHtml(c.name) + '」（<strong>+' + c.ratioDiff.toFixed(2) + '%</strong>）';
                 });
                 cCat3.innerHTML = '<strong>構成比が上昇したカテゴリ:</strong> ' + rrParts.join('、') + ' が比較対象で売上シェアを拡大しています。';
@@ -1340,11 +1359,11 @@ function renderCommentary() {
         }
 
         // (4) 構成比が下降したカテゴリ
-        var fallingRatio = integratedCats.filter(function(c) { return c.ratioDiff < -0.05; })
-            .sort(function(a, b) { return a.ratioDiff - b.ratioDiff; });
+        var fallingRatio = integratedCats.filter(function (c) { return c.ratioDiff < -0.05; })
+            .sort(function (a, b) { return a.ratioDiff - b.ratioDiff; });
         if (cCat4) {
             if (fallingRatio.length > 0) {
-                var frParts = fallingRatio.slice(0, 3).map(function(c) {
+                var frParts = fallingRatio.slice(0, 3).map(function (c) {
                     return '「' + escHtml(c.name) + '」（<strong>' + c.ratioDiff.toFixed(2) + '%</strong>）';
                 });
                 cCat4.innerHTML = '<strong>構成比が下降したカテゴリ:</strong> ' + frParts.join('、') + ' が比較対象で売上シェアを縮小させています。';
@@ -1356,7 +1375,7 @@ function renderCommentary() {
     } else if ((uploadedBaseData || uploadedCompareData) && integratedCats.length > 0) {
         var top3 = integratedCats.slice(0, 3);
         if (cCat1) {
-            var catParts = top3.map(function(c) {
+            var catParts = top3.map(function (c) {
                 var s = c.cSales > 0 ? c.cSales : c.bSales;
                 var r = c.cSales > 0 ? c.cRatio : c.bRatio;
                 return '「' + escHtml(c.name) + '」（構成比 <strong>' + r.toFixed(1) + '%</strong>, ' + formatYen(s) + '）';
@@ -1376,14 +1395,14 @@ function renderCommentary() {
 
     if (uploadedBaseData && uploadedCompareData &&
         uploadedBaseData.topItems && uploadedCompareData.topItems) {
-        
+
         var baseItems = uploadedBaseData.topItems;
         var compItems = uploadedCompareData.topItems;
 
         var baseRankMap = {};
-        baseItems.forEach(function(it, idx) { baseRankMap[it.name] = idx + 1; });
+        baseItems.forEach(function (it, idx) { baseRankMap[it.name] = idx + 1; });
         var compRankMap = {};
-        compItems.forEach(function(it, idx) { compRankMap[it.name] = idx + 1; });
+        compItems.forEach(function (it, idx) { compRankMap[it.name] = idx + 1; });
 
         // (1) 安定首位・上位定番商品の分析
         if (cRank1) {
@@ -1403,7 +1422,7 @@ function renderCommentary() {
         // (2) 比較対象で順位が上昇した商品
         if (cRank2) {
             var risingRankItems = [];
-            compItems.forEach(function(it) {
+            compItems.forEach(function (it) {
                 var bR = baseRankMap[it.name];
                 var cR = compRankMap[it.name];
                 if (bR !== undefined && cR !== undefined && (bR - cR) >= 2) {
@@ -1423,7 +1442,7 @@ function renderCommentary() {
         // (3) 比較対象で順位が下降した商品
         if (cRank3) {
             var fallingRankItems = [];
-            baseItems.forEach(function(it) {
+            baseItems.forEach(function (it) {
                 var bR = baseRankMap[it.name];
                 var cR = compRankMap[it.name];
                 if (bR !== undefined && cR !== undefined && (cR - bR) >= 2) {
@@ -1471,7 +1490,7 @@ function handleFileUpload(file, type) {
         return;
     }
 
-    SalesParser.parseSalesFile(file).then(function(parsedData) {
+    SalesParser.parseSalesFile(file).then(function (parsedData) {
         var key = type === 'base' ? 'base_data' : 'compare_data';
         var payload = {
             fileName: file.name,
@@ -1491,7 +1510,8 @@ function handleFileUpload(file, type) {
             fileSize: file.size,
             itemCount: parsedData.itemCount,
             totalSales: parsedData.totalDailySales,
-            periodStr: parsedData.periodStr
+            periodStr: parsedData.periodStr,
+            storeName: parsedData.storeName || '全店舗'
         };
 
         var pillId = type === 'base' ? 'file-name-base' : 'file-name-compare';
@@ -1503,7 +1523,7 @@ function handleFileUpload(file, type) {
 
         renderDashboard();
         showToast((type === 'base' ? '基準' : '比較') + 'データ（' + parsedData.itemCount + '件）を読み込みました。', 'success');
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.error('ファイル解析エラー:', err);
         showToast('ファイルの解析に失敗しました: ' + err.message, 'warning');
     });
@@ -1518,7 +1538,7 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
 
     // ファイル選択（input[change]）
     if (fileInput) {
-        fileInput.addEventListener('change', function(e) {
+        fileInput.addEventListener('change', function (e) {
             var file = e.target.files && e.target.files[0];
             if (file) {
                 handleFileUpload(file, type);
@@ -1530,8 +1550,8 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
     // ドラッグ&ドロップ
     if (dropZone) {
         // dragenter / dragover: ドロップ許可（preventDefault 必須）
-        ['dragenter', 'dragover'].forEach(function(eventName) {
-            dropZone.addEventListener(eventName, function(e) {
+        ['dragenter', 'dragover'].forEach(function (eventName) {
+            dropZone.addEventListener(eventName, function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 dropZone.classList.add('drag-over');
@@ -1539,8 +1559,8 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
         });
 
         // dragleave / drop: ハイライト解除
-        ['dragleave', 'drop'].forEach(function(eventName) {
-            dropZone.addEventListener(eventName, function(e) {
+        ['dragleave', 'drop'].forEach(function (eventName) {
+            dropZone.addEventListener(eventName, function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 dropZone.classList.remove('drag-over');
@@ -1548,7 +1568,7 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
         });
 
         // drop: ファイル取得・処理
-        dropZone.addEventListener('drop', function(e) {
+        dropZone.addEventListener('drop', function (e) {
             var dt = e.dataTransfer;
             var file = dt && dt.files && dt.files[0];
             if (file) {
@@ -1557,7 +1577,7 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
         });
 
         // キーボードアクセシビリティ（Enter / Space でダイアログ起動）
-        dropZone.addEventListener('keydown', function(e) {
+        dropZone.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 if (fileInput) fileInput.click();
@@ -1567,8 +1587,8 @@ function setupDropZone(dropZoneId, fileInputId, pillId, prefix, type) {
 }
 
 // DOMContentLoaded でドロップゾーンを初期化
-document.addEventListener('DOMContentLoaded', function() {
-    setupDropZone('drop-zone-base',    'file-input-base',    'file-name-base',    '基準', 'base');
+document.addEventListener('DOMContentLoaded', function () {
+    setupDropZone('drop-zone-base', 'file-input-base', 'file-name-base', '基準', 'base');
     setupDropZone('drop-zone-compare', 'file-input-compare', 'file-name-compare', '比較', 'compare');
     restorePersistedData();
 });
@@ -1581,7 +1601,7 @@ function restorePersistedData() {
     Promise.all([
         StorageManager.get('base_data'),
         StorageManager.get('compare_data')
-    ]).then(function(results) {
+    ]).then(function (results) {
         var basePayload = results[0];
         var compPayload = results[1];
         var restoredAny = false;
@@ -1593,7 +1613,8 @@ function restorePersistedData() {
                 fileSize: basePayload.fileSize || 0,
                 itemCount: basePayload.data.itemCount,
                 totalSales: basePayload.data.totalDailySales,
-                periodStr: basePayload.data.periodStr
+                periodStr: basePayload.data.periodStr,
+                storeName: basePayload.data.storeName || ''
             };
             updateFilePill('file-name-base', fileMetadata.base.fileName, '基準', 'base');
             restoredAny = true;
@@ -1606,7 +1627,8 @@ function restorePersistedData() {
                 fileSize: compPayload.fileSize || 0,
                 itemCount: compPayload.data.itemCount,
                 totalSales: compPayload.data.totalDailySales,
-                periodStr: compPayload.data.periodStr
+                periodStr: compPayload.data.periodStr,
+                storeName: compPayload.data.storeName || ''
             };
             updateFilePill('file-name-compare', fileMetadata.compare.fileName, '比較', 'compare');
             restoredAny = true;
@@ -1617,45 +1639,45 @@ function restorePersistedData() {
             renderDashboard();
             showToast('前回保存されたデータを自動復元しました。', 'info');
         }
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.warn('[restorePersistedData] 復元エラー:', err);
     });
 }
 
-    // --- ページネーション描画共通関数 ---
-    function renderPagination(totalPages, currentPage, containerId, onClickCallback) {
-        var container = document.getElementById(containerId);
-        if (!container) return;
-        container.innerHTML = '';
-        if (totalPages <= 1) return;
+// --- ページネーション描画共通関数 ---
+function renderPagination(totalPages, currentPage, containerId, onClickCallback) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    if (totalPages <= 1) return;
 
-        // 前へ
-        var prevBtn = document.createElement('button');
-        prevBtn.className = 'page-btn';
-        prevBtn.textContent = '前へ';
-        prevBtn.disabled = (currentPage === 1);
-        prevBtn.onclick = function() { onClickCallback(currentPage - 1); };
-        container.appendChild(prevBtn);
+    // 前へ
+    var prevBtn = document.createElement('button');
+    prevBtn.className = 'page-btn';
+    prevBtn.textContent = '前へ';
+    prevBtn.disabled = (currentPage === 1);
+    prevBtn.onclick = function () { onClickCallback(currentPage - 1); };
+    container.appendChild(prevBtn);
 
-        // ページ番号
-        for (var i = 1; i <= totalPages; i++) {
-            var btn = document.createElement('button');
-            btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
-            btn.textContent = i;
-            (function(pageNum) {
-                btn.onclick = function() { onClickCallback(pageNum); };
-            })(i);
-            container.appendChild(btn);
-        }
-
-        // 次へ
-        var nextBtn = document.createElement('button');
-        nextBtn.className = 'page-btn';
-        nextBtn.textContent = '次へ';
-        nextBtn.disabled = (currentPage === totalPages);
-        nextBtn.onclick = function() { onClickCallback(currentPage + 1); };
-        container.appendChild(nextBtn);
+    // ページ番号
+    for (var i = 1; i <= totalPages; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+        btn.textContent = i;
+        (function (pageNum) {
+            btn.onclick = function () { onClickCallback(pageNum); };
+        })(i);
+        container.appendChild(btn);
     }
+
+    // 次へ
+    var nextBtn = document.createElement('button');
+    nextBtn.className = 'page-btn';
+    nextBtn.textContent = '次へ';
+    nextBtn.disabled = (currentPage === totalPages);
+    nextBtn.onclick = function () { onClickCallback(currentPage + 1); };
+    container.appendChild(nextBtn);
+}
 
 
 

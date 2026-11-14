@@ -2,7 +2,7 @@
  * 売上データ解析パーサーモジュール (parser.js)
  * 単品別売上実績CSV/Excel および 日別集計表に対応
  */
-(function(global) {
+(function (global) {
     'use strict';
 
     /**
@@ -10,7 +10,7 @@
      */
     function toHalfWidth(str) {
         if (!str || typeof str !== 'string') return '';
-        return str.replace(/[！-～]/g, function(s) {
+        return str.replace(/[！-～]/g, function (s) {
             return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
         }).replace(/　/g, ' ').trim();
     }
@@ -55,40 +55,198 @@
         return 'その他';
     }
 
+    var DAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
+
+    function formatDateWithDow(y, m, d) {
+        var year = Number(y);
+        var month = Number(m);
+        var day = Number(d);
+        if (year >= 2000 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            var dt = new Date(year, month - 1, day);
+            var dow = !isNaN(dt.getTime()) ? '(' + DAYS_JP[dt.getDay()] + ')' : '';
+            return year + '/' + String(month).padStart(2, '0') + '/' + String(day).padStart(2, '0') + dow;
+        }
+        return '';
+    }
+
+    function normalizeDateToken(raw) {
+        if (raw === null || raw === undefined || raw === '') return '';
+        if (typeof raw === 'number' && raw > 25000 && raw < 70000) {
+            var utcDays = Math.floor(raw - 25569);
+            var dt = new Date(utcDays * 86400 * 1000);
+            return formatDateWithDow(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+        }
+        var s = toHalfWidth(String(raw));
+        var mYmd = s.match(/(20\d{2})[年\/\-.]\s*(\d{1,2})[月\/\-.]\s*(\d{1,2})日?(?:\(([日月火水木金土])\))?/);
+        if (mYmd) {
+            if (mYmd[4]) {
+                return mYmd[1] + '/' + String(mYmd[2]).padStart(2, '0') + '/' + String(mYmd[3]).padStart(2, '0') + '(' + mYmd[4] + ')';
+            }
+            return formatDateWithDow(mYmd[1], mYmd[2], mYmd[3]);
+        }
+        return s;
+    }
+
+    function isGenericSheetName(name) {
+        if (!name || typeof name !== 'string') return true;
+        var clean = name.trim();
+        return /^(?:sheet\s*\d*|シート\s*\d*|page\s*\d*|table\s*\d*|ワークシート\d*|売上.*|データ.*)$/i.test(clean);
+    }
+
+    function normalizeStoreLabel(raw) {
+        if (!raw || typeof raw !== 'string') return '';
+        var s = toHalfWidth(raw).trim();
+        if (!s) return '';
+        if (/(?:全店舗|全店|全社|全体|全店計|全店合計|^all$)/i.test(s)) {
+            return '全店舗';
+        }
+        s = s.replace(/^\d{1,4}[\s:：_\-]*/, '').trim();
+        return s;
+    }
+
+    /**
+     * 行データ・シート名・ファイル名から対象期間と店舗名を抽出
+     * @param {Array<Array<any>>} rows
+     * @param {string} fileName
+     * @param {string} [sheetName]
+     * @returns {{ periodStr: string, storeName: string }}
+     */
+    function extractMetaFromRowsAndName(rows, fileName, sheetName) {
+        var periodStr = '';
+        var storeName = '';
+        var startDate = '';
+        var endDate = '';
+
+        if (Array.isArray(rows)) {
+            var scanLimit = Math.min(rows.length, 8);
+            for (var r = 0; r < scanLimit; r++) {
+                var row = rows[r] || [];
+                var rowStr = row.join(' ');
+
+                for (var c = 0; c < row.length; c++) {
+                    var cellVal = row[c];
+                    if (cellVal === null || cellVal === undefined || cellVal === '') continue;
+                    var cellStr = toHalfWidth(String(cellVal));
+                    if (!cellStr) continue;
+
+                    if (cellStr.indexOf('対象期間開始日') !== -1) {
+                        var partsStart = cellStr.split(/[：:]/);
+                        var candStart = (partsStart[1] && partsStart[1].trim()) ? partsStart[1].trim() : (row[c + 1] !== undefined ? row[c + 1] : '');
+                        var normStart = normalizeDateToken(candStart);
+                        if (normStart) startDate = normStart;
+                        continue;
+                    }
+                    if (cellStr.indexOf('対象期間終了日') !== -1) {
+                        var partsEnd = cellStr.split(/[：:]/);
+                        var candEnd = (partsEnd[1] && partsEnd[1].trim()) ? partsEnd[1].trim() : (row[c + 1] !== undefined ? row[c + 1] : '');
+                        var normEnd = normalizeDateToken(candEnd);
+                        if (normEnd) endDate = normEnd;
+                        continue;
+                    }
+
+                    if (!storeName) {
+                        var keyPart = cellStr.split(/[：:]/)[0].trim();
+                        if (/^(?:店舗名|店名|対象店舗|検索店舗|店舗)$/.test(keyPart)) {
+                            var partsStore = cellStr.split(/[：:]/);
+                            var candStore = (partsStore[1] && partsStore[1].trim()) ? partsStore[1].trim() : (row[c + 1] !== undefined ? toHalfWidth(String(row[c + 1])) : '');
+                            if (candStore && !/^(?:対象期間|年月日|日付|商品)/.test(candStore)) {
+                                storeName = normalizeStoreLabel(candStore);
+                            }
+                        } else if (r < 4 && /^(?:全店舗|全店|全店計|全店合計|\d{2,4}[\s:：_\-]*[^\d\s]{1,10}店)$/.test(cellStr)) {
+                            storeName = normalizeStoreLabel(cellStr);
+                        }
+                    }
+                }
+
+                if (!periodStr) {
+                    var matchPeriod = rowStr.match(/(\d{4}[年\/\-.]\d{1,2}[月\/\-.]\d{1,2}[日]?(?:\([^)]+\))?)\s*[～~〜ー\-－]\s*(\d{4}[年\/\-.]\d{1,2}[月\/\-.]\d{1,2}[日]?(?:\([^)]+\))?)/);
+                    if (matchPeriod) {
+                        var s1 = normalizeDateToken(matchPeriod[1]);
+                        var s2 = normalizeDateToken(matchPeriod[2]);
+                        periodStr = (s1 === s2) ? s1 : (s1 + '〜' + s2);
+                    } else {
+                        var matchSingle = rowStr.match(/(?:対象期間|表示期間|集計期間|年月日|営業日|日付)[：:\s]*(\d{4}[年\/\-.]\d{1,2}[月\/\-.]\d{1,2}[日]?(?:\([^)]+\))?)/);
+                        if (matchSingle) {
+                            periodStr = normalizeDateToken(matchSingle[1]);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!periodStr && (startDate || endDate)) {
+            if (startDate && endDate) {
+                periodStr = (startDate === endDate) ? startDate : (startDate + '〜' + endDate);
+            } else {
+                periodStr = startDate || endDate;
+            }
+        }
+
+        var cleanFn = toHalfWidth(String(fileName || '').replace(/\.[^.]+$/, ''));
+        if (!periodStr && cleanFn) {
+            var mFnRange = cleanFn.match(/(20\d{2})[年\/\-._]?([01]\d)[月\/\-._]?([0-3]\d)日?\s*[~〜～\-_]\s*(?:(20\d{2})[年\/\-._]?)?([01]\d)[月\/\-._]?([0-3]\d)日?/);
+            if (mFnRange) {
+                var f1 = formatDateWithDow(mFnRange[1], mFnRange[2], mFnRange[3]);
+                var f2 = formatDateWithDow(mFnRange[4] || mFnRange[1], mFnRange[5], mFnRange[6]);
+                if (f1 && f2) periodStr = (f1 === f2) ? f1 : (f1 + '〜' + f2);
+            }
+            if (!periodStr) {
+                var matchFileYmd = cleanFn.match(/(20\d{2})[年\/\-._\s]([01]?\d)[月\/\-._\s]([0-3]?\d)日?/) ||
+                    cleanFn.match(/(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])/);
+                if (matchFileYmd) {
+                    periodStr = formatDateWithDow(matchFileYmd[1], matchFileYmd[2], matchFileYmd[3]);
+                }
+            }
+            if (!periodStr) {
+                var matchFileYm = cleanFn.match(/(20\d{2})[年\/\-._\s]?([01]?\d)月?/);
+                if (matchFileYm && Number(matchFileYm[2]) >= 1 && Number(matchFileYm[2]) <= 12) {
+                    periodStr = matchFileYm[1] + '年' + Number(matchFileYm[2]) + '月';
+                }
+            }
+        }
+
+        if (!storeName && sheetName && !isGenericSheetName(sheetName)) {
+            storeName = normalizeStoreLabel(sheetName);
+        }
+
+        if (!storeName && cleanFn) {
+            if (/(?:全店舗|全店|全社|全体)/.test(cleanFn)) {
+                storeName = '全店舗';
+            } else {
+                var mStore = cleanFn.match(/(?:\d{2,4}[_\-\s]*)?([^\d_\-\s()（）.]{1,12}店)/);
+                if (mStore) {
+                    storeName = normalizeStoreLabel(mStore[1]);
+                }
+            }
+        }
+
+        if (!periodStr) {
+            periodStr = '期間未特定';
+        }
+        if (!storeName) {
+            storeName = '全店舗';
+        }
+
+        return {
+            periodStr: periodStr,
+            storeName: storeName
+        };
+    }
+
     /**
      * 単品別売上実績CSV/Excelの構造を解析
      * @param {Array<Array<any>>} rows 2次元配列
      * @param {string} fileName ファイル名
+     * @param {string} [sheetName] シート名
      */
-    function parseItemizedReport(rows, fileName) {
-        var periodStr = '';
+    function parseItemizedReport(rows, fileName, sheetName) {
+        var meta = extractMetaFromRowsAndName(rows, fileName, sheetName);
+        var periodStr = meta.periodStr;
+        var storeName = meta.storeName;
         var totalDailySales = 0;
         var totalPeriodSales = 0;
         var headerRowIndex = -1;
         var colMap = {};
-
-        // 1. 期間メタデータの探索 (行1〜行6)
-        for (var r = 0; r < Math.min(rows.length, 6); r++) {
-            var rowStr = (rows[r] || []).join(' ');
-            var matchPeriod = rowStr.match(/(\d{4}[年\/-]\d{1,2}[月\/-]\d{1,2}[日]?(\([^)]+\))?)\s*[～~ー-]\s*(\d{4}[年\/-]\d{1,2}[月\/-]\d{1,2}[日]?(\([^)]+\))?)/);
-            if (matchPeriod) {
-                periodStr = matchPeriod[0];
-                break;
-            }
-            var matchSingle = rowStr.match(/対象期間[：:\s]*(\d{4}[年\/-]\d{1,2}[月\/-]\d{1,2}[日]?(\([^)]+\))?)/);
-            if (matchSingle) {
-                periodStr = matchSingle[1];
-                break;
-            }
-        }
-        if (!periodStr) {
-            var matchFileDate = fileName.match(/(\d{4})(\d{2})(\d{2})/);
-            if (matchFileDate) {
-                periodStr = matchFileDate[1] + '年' + matchFileDate[2] + '月' + matchFileDate[3] + '日';
-            } else {
-                periodStr = '期間未定';
-            }
-        }
 
         // 2. ヘッダー行の検出 (「商品名」「コード」を含む行の探索)
         for (var r = 0; r < Math.min(rows.length, 15); r++) {
@@ -119,7 +277,7 @@
         var maxCols = Math.max(rowMain.length, rowSub.length);
         for (var c = 0; c < maxCols; c++) {
             var hMain = toHalfWidth(String(rowMain[c] || '')).replace(/\s+/g, '');
-            var hSub  = isSubHeader ? toHalfWidth(String(rowSub[c] || '')).replace(/\s+/g, '') : '';
+            var hSub = isSubHeader ? toHalfWidth(String(rowSub[c] || '')).replace(/\s+/g, '') : '';
             var hCombined = hMain + '_' + hSub;
 
             // 商品コード
@@ -141,7 +299,7 @@
                 }
             }
             else if ((hCombined.indexOf('売上') !== -1 && (hCombined.indexOf('前年比') !== -1 || hCombined.indexOf('対比') !== -1)) ||
-                     (colMap.compRatio === undefined && (hCombined.indexOf('前年比') !== -1 || hCombined.indexOf('対比') !== -1))) {
+                (colMap.compRatio === undefined && (hCombined.indexOf('前年比') !== -1 || hCombined.indexOf('対比') !== -1))) {
                 colMap.compRatio = c;
             }
 
@@ -223,7 +381,7 @@
 
             var rawName = String(row[colMap.name] || '').trim();
             var rawCode = String(row[colMap.code] || '').trim();
-            
+
             // 売上ダッシュボードの仕様に合わせ、CSVのカテゴリ列を無視してマスタ分類を強制する
             var resolvedCategory = getProductCategory(rawName, rawCode);
 
@@ -245,7 +403,7 @@
 
         // 全単品の合計実績を算出（構成比算出の確実な分母とする）
         var sumItemDailySales = 0;
-        items.forEach(function(it) { sumItemDailySales += it.dailySales; });
+        items.forEach(function (it) { sumItemDailySales += it.dailySales; });
 
         if (totalDailySales === 0 && items.length > 0) {
             totalDailySales = sumItemDailySales;
@@ -254,7 +412,7 @@
         // 単品の構成比補完（総合計行の金額を優先して分母とする）
         var itemDenominator = totalDailySales > 0 ? totalDailySales : sumItemDailySales;
         if (itemDenominator > 0) {
-            items.forEach(function(it) {
+            items.forEach(function (it) {
                 if (it.ratio === null || it.ratio === undefined || isNaN(it.ratio)) {
                     it.ratio = parseFloat((it.dailySales / itemDenominator * 100).toFixed(2));
                 }
@@ -263,7 +421,7 @@
 
         // カテゴリ別集計（実績は表示用、期間売上はダッシュボード互換の構成比計算用）
         var categoryPeriodMap = {};
-        items.forEach(function(item) {
+        items.forEach(function (item) {
             var cat = item.category || 'その他';
             if (!categoryMap[cat]) {
                 categoryMap[cat] = 0;
@@ -275,9 +433,9 @@
 
         // カテゴリ構成比の算出（総合計行の期間売上を優先して分母とする）
         var sumItemPeriodSales = 0;
-        items.forEach(function(it) { sumItemPeriodSales += it.periodSales; });
+        items.forEach(function (it) { sumItemPeriodSales += it.periodSales; });
         var catPeriodDenominator = totalPeriodSales > 0 ? totalPeriodSales : sumItemPeriodSales;
-        
+
         var categories = [];
         for (var catName in categoryMap) {
             categories.push({
@@ -286,19 +444,20 @@
                 ratio: catPeriodDenominator > 0 ? (categoryPeriodMap[catName] / catPeriodDenominator * 100) : 0
             });
         }
-        categories.sort(function(a, b) { return b.sales - a.sales; });
+        categories.sort(function (a, b) { return b.sales - a.sales; });
 
-        items.sort(function(a, b) {
+        items.sort(function (a, b) {
             return b.dailySales - a.dailySales;
         });
 
         return {
             fileName: fileName,
             periodStr: periodStr,
+            storeName: storeName,
             totalDailySales: totalDailySales,
             totalPeriodSales: totalPeriodSales,
             itemCount: items.length,
-                        topItems: items.slice(0, 50),
+            topItems: items.slice(0, 50),
             allItems: items,
             categories: categories
         };
@@ -310,7 +469,7 @@
      * @returns {Promise<Object>}
      */
     function parseSalesFile(file) {
-        return new Promise(function(resolve, reject) {
+        return new Promise(function (resolve, reject) {
             if (!file) {
                 return reject(new Error('ファイルが指定されていません。'));
             }
@@ -329,7 +488,7 @@
             }
 
             var reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     var buffer = e.target.result;
                     var data = new Uint8Array(buffer);
@@ -374,7 +533,8 @@
                         return reject(new Error('有効なシートが存在しません。'));
                     }
 
-                    var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    var firstSheetName = workbook.SheetNames[0];
+                    var firstSheet = workbook.Sheets[firstSheetName];
 
                     // 防御策: セルオブジェクト内に数式(.f)が残存している場合は完全に消去し「値のみ」にする
                     if (firstSheet && !isCSV) {
@@ -398,14 +558,14 @@
                         return reject(new Error('データが空です。'));
                     }
 
-                    var parsedResult = parseItemizedReport(rows, fileName);
+                    var parsedResult = parseItemizedReport(rows, fileName, isCSV ? '' : firstSheetName);
                     resolve(parsedResult);
                 } catch (err) {
                     reject(new Error('ファイル解析エラー: ' + err.message));
                 }
             };
 
-            reader.onerror = function() {
+            reader.onerror = function () {
                 reject(new Error('ファイル読み込みに失敗しました。'));
             };
 
@@ -414,7 +574,8 @@
     }
 
     global.SalesParser = {
-        parseSalesFile: parseSalesFile
+        parseSalesFile: parseSalesFile,
+        extractMeta: extractMetaFromRowsAndName
     };
 
 })(window);
